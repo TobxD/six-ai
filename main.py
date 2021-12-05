@@ -1,7 +1,7 @@
 from board import Board
 from moves import *
 from randomBot import RandomBot
-
+import json
 
 def testWinDetection():
     shapes = [
@@ -23,26 +23,39 @@ def testWinDetection():
 
 # there have to be moves available -> at least one stone already set
 def simulate(board, player1, player2, startPlayer = 1):
+    moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
+    positions = []
     while True:
-        print(board)
+        #print(board)
         winner = board.hasWon()
         if winner != 0:
-            print(winner, "has won!")
+            result = winner*2 - 3
+            print(winner, "has won after", moveNum, "moves")
             break
         if len(board.movesAvailable()) == 0:
+            result = 0
             print("no more moves possible -> draw")
             break
+        positions.append(json.dumps((board.board, toMove+1)))
         move_y, move_x = players[toMove].nextMove(board)
         board.move(toMove+1, move_y, move_x)
         toMove = 1-toMove
+        moveNum += 1
+    with open("data.json", "a") as f:
+        for position in positions:
+            f.write(position + "\n")
+            f.write(json.dumps(result) + "\n")
+        
         
 def testRandom():
-    board = Board(10, startPieces=True)
+    board = Board(20, startPieces=True)
     player1 = RandomBot(1)
     player2 = RandomBot(2)
     simulate(board, player1, player2)
 
 #testWinDetection()
-testRandom()
+for i in range(100):
+    print(i)
+    testRandom()
