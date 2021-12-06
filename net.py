@@ -16,6 +16,7 @@ class ValueNet(LightningModule):
             nn.Conv2d(in_channels=2, out_channels=self.hparams['channels'], kernel_size=7),
             nn.ReLU(),
             nn.Flatten(),
+            nn.Dropout(0.5),
             nn.Linear(self.hparams['channels']*(s-6)*(s-6), 10),
             nn.ReLU(),
             nn.Linear(10, 1),

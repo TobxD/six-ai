@@ -23,7 +23,7 @@ def readData(filename):
     return data
 
 hparams = {
-    'lr': 3e-3,
+    'lr': 4e-3,
     'reg': 0,
     'channels': 20
 }
