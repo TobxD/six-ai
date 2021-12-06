@@ -13,15 +13,16 @@ class ValueNet(LightningModule):
         self.model = nn.Sequential(
             #nn.Linear(s*s*2, s*s),
             #nn.ReLU(),
-            nn.Conv2d(in_channels=2, out_channels=20, kernel_size=5, padding=2),
+            nn.Conv2d(in_channels=2, out_channels=self.hparams['channels'], kernel_size=7),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(20*s*s, 1),
+            nn.Linear(self.hparams['channels']*(s-6)*(s-6), 10),
+            nn.ReLU(),
+            nn.Linear(10, 1),
             nn.Tanh()
         )
 
     def forward(self, x):
-        #x = x.view(x.size(0), -1)
         return self.model(x)
 
     def training_step(self, batch, batch_nb):
@@ -42,7 +43,10 @@ class ValueNet(LightningModule):
         self.log('val_loss', avg_loss)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['reg'])
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['reg'])
+        #scheduler = ExponentialLR(optimizer, gamma=0.95)
+        #return scheduler
+        return optimizer
 
 class GameData(LightningDataModule):
     def __init__(self, games, batch_size=4):
@@ -60,6 +64,8 @@ class GameData(LightningDataModule):
         print(len(self.train_data), len(self.val_data))
         random.shuffle(self.train_data)
         random.shuffle(self.val_data)
+        #self.train_data = self.train_data[:256]
+        #self.val_data = self.val_data[:256]
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size)

@@ -1,5 +1,6 @@
 import json
 import pytorch_lightning as pl
+import pprint
 
 from net import ValueNet, GameData
 from util import *
@@ -18,12 +19,13 @@ def readData(filename):
             board, toMove = json.loads(lines[i])
             result = int(lines[i+1])
             data.append((prepareData(board, toMove), float(result) if toMove == 1 else float(-result)))
-    print(data[0])
+    pprint.pprint(data[0])
     return data
 
 hparams = {
-    'lr': 2e-4,
-    'reg': 1e-4
+    'lr': 3e-3,
+    'reg': 0,
+    'channels': 20
 }
 model = ValueNet(SIZE, hparams)
 data = readData("data/data.json")

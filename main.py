@@ -73,4 +73,4 @@ def generateGames(cnt):
 
 #testWinDetection()
 #testWouldWin()
-generateGames(1000)
+generateGames(10000)
