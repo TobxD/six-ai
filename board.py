@@ -39,6 +39,7 @@ class Board:
             dir = (dir+1) % 6
         return True
 
+
     def hasTriangle(self, y, x, dir):
         col = self.board[y][x]
         for i in range(6):
@@ -49,19 +50,36 @@ class Board:
             y, x = moveTo(y, x, dir)
         return True
 
+    def hasWinningShape(self, y, x):
+        if not self.inBounds(y, x) or self.board[y][x] == 0:
+            return 0
+        for dir in range(3):
+            if self.hasLine(y, x, dir):
+                return self.board[y][x]
+        if self.hasCircle(y, x):
+            return self.board[y][x]
+        for dir in range(2):
+            if self.hasTriangle(y, x, dir):
+                return self.board[y][x]
+        return 0
+
+    def wouldWin(self, color, y, x):
+        self.move(color, y, x)
+        for shape in shapes:
+            for (y_dif, x_dif) in shape:
+                winner = self.hasWinningShape(y-y_dif, x-x_dif)
+                if winner != 0:
+                    self.move(0, y, x)
+                    return True
+        self.move(0, y, x)
+        return False
+
     def hasWon(self):
         for i in range(self.size):
             for j in range(self.size):
-                if self.board[i][j] == 0:
-                    continue
-                for dir in range(3):
-                    if self.hasLine(i, j, dir):
-                        return self.board[i][j]
-                if self.hasCircle(i, j):
-                    return self.board[i][j]
-                for dir in range(2):
-                    if self.hasTriangle(i, j, dir):
-                        return self.board[i][j]
+                winner = self.hasWinningShape(i, j)
+                if winner != 0:
+                    return winner
         return 0
 
     def __str__(self):

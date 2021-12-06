@@ -22,16 +22,16 @@ def readData(filename):
     return data
 
 hparams = {
-    'lr': 1e-5,
-    'reg': 1e-2
+    'lr': 3e-6,
+    'reg': 1e-1
 }
 model = ValueNet(SIZE, hparams)
-data = readData("data.json")
+data = readData("data/data.json")
 dataloader = GameData(data, batch_size=256)
 dataloader.prepare_data()
 trainer = pl.Trainer(
     weights_summary=None,
-    max_epochs=30,
+    max_epochs=200,
     progress_bar_refresh_rate=25,
     gpus=1
 )

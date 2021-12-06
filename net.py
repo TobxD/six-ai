@@ -13,6 +13,8 @@ class ValueNet(LightningModule):
         self.model = nn.Sequential(
             nn.Linear(s*s*2, s*s),
             nn.ReLU(),
+            nn.Linear(s*s, s*s),
+            nn.ReLU(),
             nn.Linear(s*s, 1),
             nn.Tanh()
         )

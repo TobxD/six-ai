@@ -4,22 +4,30 @@ from randomBot import RandomBot
 import json
 
 def testWinDetection():
-    shapes = [
-        [(0,0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)], # line 1
-        [(0,0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)], # line 2
-        [(5,0), (4, 1), (3, 2), (2, 3), (1, 4), (0, 5)], # line 3
-        [(0,0), (1, 0), (2, 0), (0, 1), (1, 1), (0, 2)], # triangle 1
-        [(0,2), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)], # triangle 2
-        [(0,1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)], # circle
-    ]
-
-    for shape in shapes:
-        b = Board(10)
+    new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
+    for shape in new_shapes:
+        b = Board(15)
         for (y,x) in shape:
             b.move(1, y, x)
+        print(b.hasWon())
         assert(b.hasWon() == 1)
         print(b)
         print(b.movesAvailable())
+
+def testWouldWin():
+    new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
+    for shape in new_shapes:
+        for i in range(len(shape)):
+            b = Board(15)
+            for j in range(len(shape)-1):
+                y, x = shape[(i+j+1)%len(shape)]
+                b.move(1, y, x)
+            y, x = shape[i]
+            print(b)
+            assert(b.wouldWin(1, y, x))
+
+posCnt = {-1:0, 0:0, 1:0}
+gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
 def simulate(board, player1, player2, startPlayer = 1):
@@ -43,19 +51,26 @@ def simulate(board, player1, player2, startPlayer = 1):
         board.move(toMove+1, move_y, move_x)
         toMove = 1-toMove
         moveNum += 1
-    with open("data.json", "a") as f:
-        for position in positions:
+    posCnt[result] += moveNum
+    gameCnt[result] += 1
+    with open("data/data.json", "a") as f:
+        for position in positions[-10:]:
             f.write(position + "\n")
             f.write(json.dumps(result) + "\n")
-        
-        
+
+
 def testRandom():
     board = Board(SIZE, startPieces=True)
-    player1 = RandomBot(1)
-    player2 = RandomBot(2)
+    player1 = RandomBot(1, search_winning=True, search_losing=True)
+    player2 = RandomBot(2, search_winning=True, search_losing=True)
     simulate(board, player1, player2)
 
+def generateGames(cnt):
+    for i in range(cnt):
+        print(i)
+        testRandom()
+        print(posCnt, gameCnt)
+
 #testWinDetection()
-for i in range(1000):
-    print(i)
-    testRandom()
+testWouldWin()
+#generateGames(1000)
