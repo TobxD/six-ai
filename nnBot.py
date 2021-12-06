@@ -1,8 +1,12 @@
 import json
+import pytorch_lightning as pl
+
+from net import ValueNet, GameData
+from util import *
 
 def prepareData(board, toMove):
-    ownBoard = [[x==toMove for x in line] for line in board]
-    otherBoard = [[x==3-toMove for x in line] for line in board]
+    ownBoard = [[float(x==toMove) for x in line] for line in board]
+    otherBoard = [[float(x==3-toMove) for x in line] for line in board]
     return [ownBoard, otherBoard]
 
 def readData(filename):
@@ -13,8 +17,22 @@ def readData(filename):
         for i in range(0, len(lines), 2):
             board, toMove = json.loads(lines[i])
             result = int(lines[i+1])
-            data.append((prepareData(board, toMove), result if toMove == 1 else -result))
+            data.append((prepareData(board, toMove), float(result) if toMove == 1 else float(-result)))
     print(data[0])
     return data
 
-readData("data.json")
+hparams = {
+    'lr': 1e-5,
+    'reg': 1e-2
+}
+model = ValueNet(SIZE, hparams)
+data = readData("data.json")
+dataloader = GameData(data, batch_size=256)
+dataloader.prepare_data()
+trainer = pl.Trainer(
+    weights_summary=None,
+    max_epochs=30,
+    progress_bar_refresh_rate=25,
+    gpus=1
+)
+trainer.fit(model, train_dataloaders=dataloader.train_dataloader(), val_dataloaders=dataloader.val_dataloader())

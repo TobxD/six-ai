@@ -1,4 +1,4 @@
-from moves import *
+from util import *
 
 class Board:
     size = 10

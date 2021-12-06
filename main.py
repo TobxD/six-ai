@@ -1,5 +1,5 @@
 from board import Board
-from moves import *
+from util import *
 from randomBot import RandomBot
 import json
 
@@ -50,12 +50,12 @@ def simulate(board, player1, player2, startPlayer = 1):
         
         
 def testRandom():
-    board = Board(20, startPieces=True)
+    board = Board(SIZE, startPieces=True)
     player1 = RandomBot(1)
     player2 = RandomBot(2)
     simulate(board, player1, player2)
 
 #testWinDetection()
-for i in range(100):
+for i in range(1000):
     print(i)
     testRandom()
