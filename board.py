@@ -21,53 +21,28 @@ class Board:
     def inBounds(self, y, x):
         return y >= 0 and y < self.size and x >= 0 and x < self.size
 
-    def hasLine(self, y, x, dir):
-        col = self.board[y][x]
-        for i in range(6):
-            if not self.inBounds(y, x) or self.board[y][x] != col:
-                return False
-            y, x = moveTo(y, x, dir)
-        return True
-
-    def hasCircle(self, y, x):
-        col = self.board[y][x]
-        dir = RIGHT
-        for i in range(6):
-            if not self.inBounds(y, x) or self.board[y][x] != col:
-                return False
-            y, x = moveTo(y, x, dir)
-            dir = (dir+1) % 6
-        return True
-
-
-    def hasTriangle(self, y, x, dir):
-        col = self.board[y][x]
-        for i in range(6):
-            if not self.inBounds(y, x) or self.board[y][x] != col:
-                return False
-            if i % 2 == 0:
-                dir = (dir + 2) % 6
-            y, x = moveTo(y, x, dir)
-        return True
-
-    def hasWinningShape(self, y, x):
+    def hasSpecificWinningShape(self, y, x, shape):
         if not self.inBounds(y, x) or self.board[y][x] == 0:
             return 0
-        for dir in range(3):
-            if self.hasLine(y, x, dir):
-                return self.board[y][x]
-        if self.hasCircle(y, x):
-            return self.board[y][x]
-        for dir in range(2):
-            if self.hasTriangle(y, x, dir):
-                return self.board[y][x]
+        color = self.board[y][x]
+        for (y_dif, x_dif) in shape:
+            new_y, new_x = y+y_dif, x+x_dif
+            if not self.inBounds(new_y, new_x) or self.board[y+y_dif][x+x_dif] != color:
+                return 0
+        return color
+
+    def hasWinningShape(self, y, x):
+        for shape in shapes:
+            winner = self.hasSpecificWinningShape(y, x, shape)
+            if winner != 0:
+                return winner
         return 0
 
     def wouldWin(self, color, y, x):
         self.move(color, y, x)
         for shape in shapes:
             for (y_dif, x_dif) in shape:
-                winner = self.hasWinningShape(y-y_dif, x-x_dif)
+                winner = self.hasSpecificWinningShape(y-y_dif, x-x_dif, shape)
                 if winner != 0:
                     self.move(0, y, x)
                     return True

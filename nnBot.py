@@ -22,8 +22,8 @@ def readData(filename):
     return data
 
 hparams = {
-    'lr': 3e-6,
-    'reg': 1e-1
+    'lr': 1e-3,
+    'reg': 1e-10
 }
 model = ValueNet(SIZE, hparams)
 data = readData("data/data.json")
@@ -31,7 +31,7 @@ dataloader = GameData(data, batch_size=256)
 dataloader.prepare_data()
 trainer = pl.Trainer(
     weights_summary=None,
-    max_epochs=200,
+    max_epochs=50,
     progress_bar_refresh_rate=25,
     gpus=1
 )

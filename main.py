@@ -23,7 +23,7 @@ def testWouldWin():
                 y, x = shape[(i+j+1)%len(shape)]
                 b.move(1, y, x)
             y, x = shape[i]
-            print(b)
+            #print(b)
             assert(b.wouldWin(1, y, x))
 
 posCnt = {-1:0, 0:0, 1:0}
@@ -72,5 +72,5 @@ def generateGames(cnt):
         print(posCnt, gameCnt)
 
 #testWinDetection()
-testWouldWin()
-#generateGames(1000)
+#testWouldWin()
+generateGames(1000)

@@ -13,8 +13,6 @@ class ValueNet(LightningModule):
         self.model = nn.Sequential(
             nn.Linear(s*s*2, s*s),
             nn.ReLU(),
-            nn.Linear(s*s, s*s),
-            nn.ReLU(),
             nn.Linear(s*s, 1),
             nn.Tanh()
         )
@@ -22,11 +20,6 @@ class ValueNet(LightningModule):
     def forward(self, x):
         x = x.view(x.size(0), -1)
         return self.model(x)
-
-    def training_step(self, batch, batch_nb):
-        x, y = batch
-        loss = nn.MSELoss(self(x), y)
-        return loss
 
     def training_step(self, batch, batch_nb):
         x, y = batch
