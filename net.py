@@ -11,14 +11,17 @@ class ValueNet(LightningModule):
         super().__init__()
         self.hparams.update(hparams)
         self.model = nn.Sequential(
-            nn.Linear(s*s*2, s*s),
+            #nn.Linear(s*s*2, s*s),
+            #nn.ReLU(),
+            nn.Conv2d(in_channels=2, out_channels=20, kernel_size=5, padding=2),
             nn.ReLU(),
-            nn.Linear(s*s, 1),
+            nn.Flatten(),
+            nn.Linear(20*s*s, 1),
             nn.Tanh()
         )
 
     def forward(self, x):
-        x = x.view(x.size(0), -1)
+        #x = x.view(x.size(0), -1)
         return self.model(x)
 
     def training_step(self, batch, batch_nb):

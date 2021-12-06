@@ -22,8 +22,8 @@ def readData(filename):
     return data
 
 hparams = {
-    'lr': 1e-3,
-    'reg': 1e-10
+    'lr': 2e-4,
+    'reg': 1e-4
 }
 model = ValueNet(SIZE, hparams)
 data = readData("data/data.json")

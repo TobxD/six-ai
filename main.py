@@ -54,7 +54,7 @@ def simulate(board, player1, player2, startPlayer = 1):
     posCnt[result] += moveNum
     gameCnt[result] += 1
     with open("data/data.json", "a") as f:
-        for position in positions[-10:]:
+        for position in positions[-2:]:
             f.write(position + "\n")
             f.write(json.dumps(result) + "\n")
 
