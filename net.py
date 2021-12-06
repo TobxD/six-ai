@@ -13,11 +13,11 @@ class ValueNet(LightningModule):
         self.model = nn.Sequential(
             #nn.Linear(s*s*2, s*s),
             #nn.ReLU(),
-            nn.Conv2d(in_channels=2, out_channels=self.hparams['channels'], kernel_size=7),
+            nn.Conv2d(in_channels=2, out_channels=self.hparams['channels'], kernel_size=6),
             nn.ReLU(),
             nn.Flatten(),
             nn.Dropout(0.5),
-            nn.Linear(self.hparams['channels']*(s-6)*(s-6), 10),
+            nn.Linear(self.hparams['channels']*(s-5)*(s-5), 10),
             nn.ReLU(),
             nn.Linear(10, 1),
             nn.Tanh()
