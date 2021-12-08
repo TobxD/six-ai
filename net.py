@@ -15,9 +15,13 @@ class ValueNet(LightningModule):
             #nn.ReLU(),
             nn.Conv2d(in_channels=2, out_channels=self.hparams['channels'], kernel_size=6),
             nn.ReLU(),
+            nn.Dropout(0.3),
+            #nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_channels=self.hparams['channels'], out_channels=2*self.hparams['channels'], kernel_size=3),
+            nn.ReLU(),
             nn.Flatten(),
-            nn.Dropout(0.5),
-            nn.Linear(self.hparams['channels']*(s-5)*(s-5), 10),
+            nn.Dropout(0.3),
+            nn.Linear(self.hparams['channels']*2*(s-7)*(s-7), 10),
             nn.ReLU(),
             nn.Linear(10, 1),
             nn.Tanh()
@@ -48,6 +52,7 @@ class ValueNet(LightningModule):
         #scheduler = ExponentialLR(optimizer, gamma=0.95)
         #return scheduler
         return optimizer
+
 
 class GameData(LightningDataModule):
     def __init__(self, games, batch_size=4):
