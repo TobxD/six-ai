@@ -1,7 +1,8 @@
 from board import Board
 from util import *
 from randomBot import RandomBot
-import json
+from nnBot import NNBot
+import json, random
 
 def testWinDetection():
     new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
@@ -54,23 +55,30 @@ def simulate(board, player1, player2, startPlayer = 1):
     posCnt[result] += moveNum
     gameCnt[result] += 1
     with open("data/data.json", "a") as f:
-        for position in positions[-2:]:
+        for position in positions[-4:]:
             f.write(position + "\n")
             f.write(json.dumps(result) + "\n")
 
 
-def testRandom():
+def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)
-    player1 = RandomBot(1, search_winning=True, search_losing=True)
-    player2 = RandomBot(2, search_winning=True, search_losing=True)
+    if not randomColor or random.choice([True, False]):
+        player1 = NNBot(1)
+        #player2 = NNBot(2)
+        #player2 = RandomBot(2, search_winning=True, search_losing=True)
+        player2 = RandomBot(2, search_winning=True, search_losing=True)
+    else:
+        player1 = RandomBot(1, search_winning=True, search_losing=True)
+        player2 = RandomBot(2, search_winning=True, search_losing=True)
+        player2 = NNBot(2)
     simulate(board, player1, player2)
 
-def generateGames(cnt):
+def generateGames(cnt, randomColor):
     for i in range(cnt):
         print(i)
-        testRandom()
+        testRandom(randomColor)
         print(posCnt, gameCnt)
 
 #testWinDetection()
 #testWouldWin()
-generateGames(10000)
+generateGames(100, randomColor=False)
