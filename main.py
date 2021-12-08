@@ -3,6 +3,7 @@ from util import *
 from randomBot import RandomBot
 from nnBot import NNBot
 import json, random
+from pathlib import Path
 
 def testWinDetection():
     new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
@@ -54,7 +55,7 @@ def simulate(board, player1, player2, startPlayer = 1):
         moveNum += 1
     posCnt[result] += moveNum
     gameCnt[result] += 1
-    with open("data/data.json", "a") as f:
+    with open(Path("data/data.json"), "a") as f:
         for position in positions[-4:]:
             f.write(position + "\n")
             f.write(json.dumps(result) + "\n")
@@ -63,10 +64,10 @@ def simulate(board, player1, player2, startPlayer = 1):
 def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        player1 = NNBot(1)
-        #player2 = NNBot(2)
+        #player1 = NNBot(1)
+        player1 = RandomBot(1, search_winning=True, search_losing=True)
+        player2 = NNBot(2)
         #player2 = RandomBot(2, search_winning=True, search_losing=True)
-        player2 = RandomBot(2, search_winning=True, search_losing=True)
     else:
         player1 = RandomBot(1, search_winning=True, search_losing=True)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
