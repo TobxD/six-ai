@@ -1,7 +1,7 @@
 from board import Board
 from util import *
 from randomBot import RandomBot
-from nnBot import NNBot
+from nnBot import NNBot, MCTSBot
 import json, random
 from pathlib import Path
 
@@ -38,7 +38,7 @@ def simulate(board, player1, player2, startPlayer = 1):
     toMove = startPlayer-1
     positions = []
     while True:
-        #print(board)
+        print(board)
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
@@ -64,10 +64,10 @@ def simulate(board, player1, player2, startPlayer = 1):
 def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        #player1 = NNBot(1)
-        player1 = RandomBot(1, search_winning=True, search_losing=True)
-        player2 = NNBot(2)
-        #player2 = RandomBot(2, search_winning=True, search_losing=True)
+        player1 = MCTSBot(1, numIterations=10)
+        #player1 = RandomBot(1, search_winning=True, search_losing=True)
+        #player2 = NNBot(2)
+        player2 = RandomBot(2, search_winning=True, search_losing=True)
     else:
         player1 = RandomBot(1, search_winning=True, search_losing=True)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
@@ -82,4 +82,4 @@ def generateGames(cnt, randomColor):
 
 #testWinDetection()
 #testWouldWin()
-generateGames(100, randomColor=False)
+generateGames(1, randomColor=False)
