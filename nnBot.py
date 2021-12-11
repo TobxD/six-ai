@@ -11,7 +11,7 @@ import pprint
 from net import ValueNet, GameData
 from util import *
 
-def prepareData(board, toMove):
+def prepareInput(board, toMove):
     ownBoard = [[float(x==toMove) for x in line] for line in board]
     otherBoard = [[float(x==3-toMove) for x in line] for line in board]
     return [ownBoard, otherBoard]
@@ -24,7 +24,7 @@ def readData(filename):
         for i in range(0, len(lines), 2):
             board, toMove = json.loads(lines[i])
             result = int(lines[i+1])
-            data.append((prepareData(board, toMove), float(result) if toMove == 1 else float(-result)))
+            data.append((prepareInput(board, toMove), float(result) if toMove == 1 else float(-result)))
     pprint.pprint(data[0])
     return data
 
@@ -73,7 +73,7 @@ def trainModelFromData():
 #trainModelFromData()
 
 def evalNet(model, board, toMove):
-    positions = [(prepareData(board.board, toMove), 0)]
+    positions = [(prepareInput(board.board, toMove), 0)]
     tensor_data = [(torch.FloatTensor(x).float(), y) for (x,y) in positions]
     dataloader = DataLoader(tensor_data, batch_size=256)
     for (idx, batch) in enumerate(dataloader):
@@ -86,7 +86,7 @@ class NNBot:
     def __init__(self, myColor):
         self.myColor = myColor
         self.otherColor = 3-myColor
-        self.model = getModel(new=False, path="models/net2_100k.ckpt")
+        self.model = getModel(new=False, path="models/latest.ckpt")
         #self.model = getModel(new=False)
         self.model.eval()
 
@@ -97,7 +97,7 @@ class NNBot:
             if board.wouldWin(self.myColor, y, x):
                 return (y, x)
             board.move(self.myColor, y, x)
-            positions.append((prepareData(board.board, self.otherColor), (y,x)))
+            positions.append((prepareInput(board.board, self.otherColor), (y,x)))
             board.move(0, y, x)
         tensor_data = [(torch.FloatTensor(x).float(), y) for (x,y) in positions]
         dataloader = DataLoader(tensor_data, batch_size=256)

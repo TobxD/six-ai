@@ -38,7 +38,7 @@ def simulate(board, player1, player2, startPlayer = 1):
     toMove = startPlayer-1
     positions = []
     while True:
-        print(board)
+        #print(board)
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
@@ -48,15 +48,16 @@ def simulate(board, player1, player2, startPlayer = 1):
             result = 0
             print("no more moves possible -> draw")
             break
-        positions.append(json.dumps((board.board, toMove+1)))
-        move_y, move_x = players[toMove].nextMove(board)
+        move = players[toMove].nextMove(board)
+        positions.append(json.dumps((board.board, move, toMove+1)))
+        move_y, move_x = move
         board.move(toMove+1, move_y, move_x)
         toMove = 1-toMove
         moveNum += 1
     posCnt[result] += moveNum
     gameCnt[result] += 1
     with open(Path("data/data.json"), "a") as f:
-        for position in positions[-4:]:
+        for position in positions[-2:]:
             f.write(position + "\n")
             f.write(json.dumps(result) + "\n")
 
@@ -64,9 +65,9 @@ def simulate(board, player1, player2, startPlayer = 1):
 def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        player1 = MCTSBot(1, numIterations=10)
-        #player1 = RandomBot(1, search_winning=True, search_losing=True)
-        #player2 = NNBot(2)
+        #player1 = MCTSBot(1, numIterations=10)
+        player1 = RandomBot(1, search_winning=True, search_losing=True)
+        #player1 = NNBot(1)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
     else:
         player1 = RandomBot(1, search_winning=True, search_losing=True)
@@ -82,4 +83,4 @@ def generateGames(cnt, randomColor):
 
 #testWinDetection()
 #testWouldWin()
-generateGames(1, randomColor=False)
+generateGames(100000, randomColor=False)
