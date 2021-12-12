@@ -1,9 +1,12 @@
 from board import Board
 from util import *
 from randomBot import RandomBot
-from nnBot import NNBot, MCTSBot
+#from nnBot import NNBot, MCTSBot
 import json, random
 from pathlib import Path
+import multiprocessing as mp
+from timeit import default_timer as timer
+
 
 def testWinDetection():
     new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
@@ -42,11 +45,11 @@ def simulate(board, player1, player2, startPlayer = 1):
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
-            print(winner, "has won after", moveNum, "moves")
+            #print(winner, "has won after", moveNum, "moves")
             break
         if len(board.movesAvailable()) == 0:
             result = 0
-            print("no more moves possible -> draw")
+            #print("no more moves possible -> draw")
             break
         move = players[toMove].nextMove(board)
         positions.append(json.dumps((board.board, move, toMove+1)))
@@ -56,10 +59,8 @@ def simulate(board, player1, player2, startPlayer = 1):
         moveNum += 1
     posCnt[result] += moveNum
     gameCnt[result] += 1
-    with open(Path("data/data.json"), "a") as f:
-        for position in positions[-2:]:
-            f.write(position + "\n")
-            f.write(json.dumps(result) + "\n")
+
+    return (positions, result)
 
 
 def testRandom(randomColor = False):
@@ -72,15 +73,48 @@ def testRandom(randomColor = False):
     else:
         player1 = RandomBot(1, search_winning=True, search_losing=True)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
-        player2 = NNBot(2)
-    simulate(board, player1, player2)
+        #player2 = NNBot(2)
+    return simulate(board, player1, player2)
+
+def collectGames(count: int):
+    data = []
+    for i in range(count):
+        data.append(testRandom(randomColor=False))
+
+    return data
 
 def generateGames(cnt, randomColor):
-    for i in range(cnt):
-        print(i)
-        testRandom(randomColor)
-        print(posCnt, gameCnt)
+    workers = mp.cpu_count() - 2
+    print(f"Executing on {workers} of your {mp.cpu_count()} CPUs")
+    print(f"Estimated time (4 games per process per second): {cnt/workers//4} s")
+
+    part_count = [cnt//workers for i in range(workers)]
+
+    start = timer()
+    with mp.Pool(processes=workers) as pool:
+        data = pool.map(collectGames,part_count)
+        end = timer()
+        print(f'elapsed time: {end - start} s')
+        print(f'per Game: {(end - start)/cnt} s')
+
+        with open(Path("data/policy_data.json"), "a") as f:
+            gameCounter = {-1:0, 0:0, 1:0}
+            for processData in data:
+                for game in processData:
+                    positions, result = game
+                    gameCounter[result] += 1
+                    for position in positions[-2:]:
+                        f.write(position + "\n")
+                        f.write(json.dumps(result) + "\n")
+            print(gameCounter)
+    
+    #for processData in data:
+    #    for game in processData:
+    #        positions, result = game
+    #        gameCounter[result] += 1
+    #print(gameCounter)
 
 #testWinDetection()
 #testWouldWin()
-generateGames(100000, randomColor=False)
+if __name__ == "__main__":
+    generateGames(100000, randomColor=False)
