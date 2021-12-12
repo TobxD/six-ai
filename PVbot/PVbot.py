@@ -1,16 +1,18 @@
+import json, os, sys, logging, random
+
+sys.path.append('../six-ai')
 from datetime import datetime
-import json, os
-from pprint import pprint
-import sys, logging, random
-import numpy as np
+from typing import Dict
 
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
 import torch
+from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
+from main import simulate
 
-sys.path.append('../six-ai')
-from net import GameData
+from randomBot import RandomBot
+
 from nnBot import prepareInput
 from board import Board
 from PVnet import PVnet
@@ -43,13 +45,13 @@ class PolicyData(LightningDataModule):
         #self.train_data = self.train_data[:256]
         #self.val_data = self.val_data[:256]
 
-    def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.batch_size)
+    def train_dataloader(self, dataloader_conf: DictConfig):
+        return DataLoader(self.train_data, **dataloader_conf)
 
-    def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.batch_size)
+    def val_dataloader(self, dataloader_conf: DictConfig):
+        return DataLoader(self.val_data, **dataloader_conf)
 
-def getModel(cfg: DictConfig, new = True, path = None):
+def getModel(cfg = None, new = True, path = None):
     hparams = {
         #also good: 5e-4
         'lr': 1e-3,
@@ -63,8 +65,8 @@ def getModel(cfg: DictConfig, new = True, path = None):
             path = Path("models/latest.ckpt")
         return PVnet.load_from_checkpoint(path, s=SIZE, hparams=hparams)
 
-def trainModel(model, trainer, dataloader):
-    trainer.fit(model, train_dataloaders=dataloader.train_dataloader(), val_dataloaders=dataloader.val_dataloader())
+def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig):
+    trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
     trainer.save_checkpoint(Path("models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
     trainer.save_checkpoint(Path("models/latest.ckpt"))
 
@@ -89,15 +91,15 @@ def readDataWithPolicy(filename):
             #print(i)
     return data
 
-def getDataloader():
-    data = readDataWithPolicy(Path(os.path.dirname(__file__)+"/../data/data.json"))
+def getDataloader(datapath):
+    data = readDataWithPolicy(Path(os.path.dirname(__file__)+"/../"+datapath))
     #pprint(data[0])
     dataloader = PolicyData(data, batch_size=1024)
     dataloader.prepare_data()
     return dataloader
 
-def trainModelFromData(model, trainer):
-    trainModel(model, trainer, getDataloader())
+def trainModelFromData(model, trainer, datapath, dataloader_conf):
+    trainModel(model, trainer, getDataloader(datapath), dataloader_conf)
     #print(getError(model, dataloader.val_dataloader()))
 
 def testNet (net):
@@ -117,11 +119,50 @@ def testNet (net):
     for (idx, batch) in enumerate(dataloader):
         print (net(batch[0]))
 
+class PVBot:
+    myColor = 1
+    otherColor = 2
+
+    def __init__(self, myColor):
+        self.myColor = myColor
+        self.otherColor = 3-myColor
+        self.model = getModel (new=False, path=Path("../../2021-12-12/13-38-35/models/latest.ckpt"))
+        self.model.eval()
+
+    def nextMove(self,board:Board):
+        print (board, self.myColor)
+        X = torch.FloatTensor(prepareInput(board.board,self.myColor)) 
+        policy, value = self.model(X.unsqueeze(0))  
+        #validMoves = board.movesAvailableAsTensor()
+        #validPolicy = policy * torch.flatten(torch.FloatTensor(validMoves))
+
+        movesAvailable = board.movesAvailable()
+        policyForSoftmax = []
+        policy = policy.tolist()[0]
+        #print(policy[0])
+        for move in movesAvailable:
+            policyForSoftmax.append(policy[board.convert2Dto1Dindex(move)])
+        
+        policyForSoftmax = torch.softmax(torch.FloatTensor(policyForSoftmax),0)
+        #print(policyForSoftmax)
+
+        validPolicy = torch.zeros(board.size*board.size)
+        for i, move in enumerate(movesAvailable):
+            validPolicy[board.convert2Dto1Dindex(move)] = policyForSoftmax[i]
+
+        #validPolicy = torch.softmax(validPolicy, dim=1)
+        #print (validPolicy)
+        move1D = torch.argmax(validPolicy).item()
+        move2D = board.convert1Dto2Dindex(move1D)
+        print (move2D)
+        print (torch.amax(validPolicy).item())
+        
+        return move2D
+
 @hydra.main(config_path="conf", config_name="PVconfig")
-def main(cfg: DictConfig):
+def training(cfg: DictConfig):
     print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
     network = getModel(cfg)
-    #network = PVnet(cfg.train, cfg.network_conf)
     print(network)
 
     trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
@@ -129,12 +170,19 @@ def main(cfg: DictConfig):
     #trainer.fit(network,data)
 
     seed_everything(42, workers=True)
-    testNet(network)
-    trainModelFromData(network, trainer)
+    #testNet(network)
+    trainModelFromData(network, trainer, cfg.data.train_data_path, cfg.data.train_dataloader_conf)
     testNet(network)
 
-
+@hydra.main(config_path="conf", config_name="PVconfig")
+def testNet(cfg: DictConfig):
+    board = Board(SIZE, startPieces=True)
+    player1 = PVBot(1)
+    player2 = RandomBot(2, search_winning=True, search_losing=True)
+    game = simulate(board, player1, player2)
+    print(game[1])
 
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
-    main()
+    #training()
+    testNet()

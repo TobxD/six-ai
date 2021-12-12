@@ -77,3 +77,18 @@ class Board:
                         if self.inBounds(y, x) and self.board[y][x] == 0:
                             moves.add((y,x))
         return list(moves)
+
+    def movesAvailableAsTensor(self):
+        moves = self.movesAvailable()
+        moveTensor = [[0 for _ in range(self.size)] for _ in range(self.size)]
+        for move in moves:
+            y,x = move
+            moveTensor[y][x] = 1
+
+        return moveTensor
+
+    def convert1Dto2Dindex(self, index: int):
+        return (index // self.size , index % self.size)
+
+    def convert2Dto1Dindex(self, index):
+        return index[0]*self.size+index[1]

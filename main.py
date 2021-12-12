@@ -107,12 +107,6 @@ def generateGames(cnt, randomColor):
                         f.write(position + "\n")
                         f.write(json.dumps(result) + "\n")
             print(gameCounter)
-    
-    #for processData in data:
-    #    for game in processData:
-    #        positions, result = game
-    #        gameCounter[result] += 1
-    #print(gameCounter)
 
 #testWinDetection()
 #testWouldWin()
