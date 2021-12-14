@@ -33,11 +33,11 @@ pl_trainer:
 mcts_bot:
   _target_: PVbot.MCTSPolicyValueBot
   model_path: "../../2021-12-13/22-35-50/models/latest.ckpt"
-  numIterations: 200
+  numIterations: 2
   c_puct: 2
 
 bot_test:
   num_games: 2
   break_on_loose: False
   store_games: True
-  store_path: "../../data/mcts_data.json"
+  store_path: "../../../data/mcts_data.json"

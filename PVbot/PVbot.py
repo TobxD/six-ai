@@ -241,7 +241,6 @@ class MCTSPolicyValueBot:
         #print(bestMove)
         return bestMove, self.Q[hash(board)]
 
-
 @hydra.main(config_path="conf", config_name="PVconfig")
 def training(cfg: DictConfig):
     print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")

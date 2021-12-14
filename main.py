@@ -53,7 +53,7 @@ def simulate(board, player1, player2, startPlayer = 1):
             break
         move, Y_policy = players[toMove].nextMove(board)
         positions.append((board.board, toMove+1, Y_policy))
-        print(move)
+        #print(move)
         move_y, move_x = move
         board.move(move_y, move_x)
         toMove = 1-toMove
@@ -69,6 +69,7 @@ def storeGames(games, path = "data.json"):
             positions, result = game
             for position in positions:
                 for position in positions: #[-2:]:
+                    print(position)
                     f.write(json.dumps(position) + "\n")
                     f.write(json.dumps(result) + "\n")
 
