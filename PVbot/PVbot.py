@@ -3,7 +3,7 @@ import json, os, sys, logging, random
 import math
 from typing import Dict
 
-sys.path.append('../six-ai')
+sys.path.append('.')
 from datetime import datetime
 from timeit import default_timer as timer
 
@@ -73,12 +73,10 @@ def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig):
     trainer.save_checkpoint(Path("models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
     trainer.save_checkpoint(Path("models/latest.ckpt"))
 
-def prepareOutput (move, result, size=10):
-    y_move, x_move = move
-
-    policy = [0.0 for _ in range(size*size)]
-    policy[y_move*size+x_move] = 1.0
-    
+def prepareOutput (y_policy, result, size=10):
+    policy = torch.zeros(size*size)
+    for ((y,x), prob) in y_policy:
+        policy[y*size+x] = prob
     return (policy, result)
 
 def readDataWithPolicy(filename):
@@ -88,14 +86,14 @@ def readDataWithPolicy(filename):
         print(f"Lines in data file: {len(lines)}")
         lines = [line[:-1] for line in lines]
         for i in range(0, len(lines), 2):
-            board, move, toMove = json.loads(lines[i])
+            board, toMove, y_policy = json.loads(lines[i])
             result = int(lines[i+1])
-            data.append((prepareInput(board, toMove), prepareOutput(move, float(result) if toMove == 2 else float(-result))))
+            data.append((prepareInput(board, toMove), prepareOutput(y_policy, float(result) if toMove == 2 else float(-result))))
             #print(i)
     return data
 
 def getDataloader(datapath):
-    data = readDataWithPolicy(Path(os.path.dirname(__file__)+"/../"+datapath))
+    data = readDataWithPolicy(Path(datapath))
     #pprint(data[0])
     dataloader = PolicyData(data, batch_size=1024)
     dataloader.prepare_data()
@@ -157,7 +155,9 @@ class MCTSPolicyValueBot:
         self.otherColor = 3-myColor
         self.network = network
         if not network:
-            self.network = getModel (new=False, path=Path("../../2021-12-13/22-35-50/models/latest.ckpt"))
+            if not model_path:
+                model_path = "../../../models/latest.ckpt"
+            self.network = getModel (new=False, path=Path(model_path))
         self.network.eval()
         ### TODO: torch.no_grad()
         self.numIterations = numIterations
@@ -239,7 +239,9 @@ class MCTSPolicyValueBot:
         bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
         
         #print(bestMove)
-        return bestMove, self.Q[hash(board)]
+        N = self.N[hash(board)]
+        sumVal = sum(N.values())
+        return bestMove, {key:N[key]/sumVal for key in N}
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def training(cfg: DictConfig):
@@ -254,7 +256,7 @@ def training(cfg: DictConfig):
     seed_everything(42, workers=True)
     #testNet(network)
     trainModelFromData(network, trainer, cfg.data.train_data_path, cfg.data.train_dataloader_conf)
-    testNet(network)
+    #testNet(network)
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def testNet(cfg: DictConfig, network = None):
@@ -290,7 +292,7 @@ def testNet(cfg: DictConfig, network = None):
 
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
-    #training()
+    training()
     #print("Name of the current directory : " + os.path.basename(os.getcwd()))
     #print(sys.path)
-    testNet()
+    #testNet()

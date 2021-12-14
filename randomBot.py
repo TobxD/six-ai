@@ -15,13 +15,20 @@ class RandomBot:
 
     def nextMove(self, board):
         posMoves = board.movesAvailable()
+        bestMoves = []
         if self.search_winning:
             for (y, x) in posMoves:
                 if board.wouldWin(self.myColor, y, x):
-                    return (y, x), None
+                    bestMoves.append((y,x))
+        if len(bestMoves) != 0:
+            prob = 1/len(bestMoves)
+            return random.choice(bestMoves), {move:prob for move in bestMoves}
         if self.search_losing:
             otherColor = 3-self.myColor
             for (y, x) in posMoves:
                 if board.wouldWin(otherColor, y, x):
-                    return (y, x), None
-        return random.choice(posMoves), None
+                    bestMoves.append((y,x))
+        if len(bestMoves) == 0:
+            bestMoves = posMoves
+        prob = 1/len(bestMoves)
+        return random.choice(bestMoves), {move:prob for move in bestMoves}
