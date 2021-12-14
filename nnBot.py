@@ -113,7 +113,7 @@ class NNBot:
         #print(posMoves)
         #print(bestProb, bestMove)
         #print("win prob of other:", bestProb)
-        return bestMove
+        return bestMove, None
 
 class MCTSValueBot:
     myColor = 1

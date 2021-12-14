@@ -53,7 +53,6 @@ class ValueNet(LightningModule):
         #return scheduler
         return optimizer
 
-
 class GameData(LightningDataModule):
     def __init__(self, games, batch_size=4):
         super().__init__()

@@ -18,10 +18,10 @@ class RandomBot:
         if self.search_winning:
             for (y, x) in posMoves:
                 if board.wouldWin(self.myColor, y, x):
-                    return (y, x)
+                    return (y, x), None
         if self.search_losing:
             otherColor = 3-self.myColor
             for (y, x) in posMoves:
                 if board.wouldWin(otherColor, y, x):
-                    return (y, x)
-        return random.choice(posMoves)
+                    return (y, x), None
+        return random.choice(posMoves), None

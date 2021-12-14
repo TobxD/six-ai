@@ -12,7 +12,7 @@ from omegaconf.omegaconf import OmegaConf
 import torch
 from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
-from main import simulate
+from main import simulate, storeGames
 
 from randomBot import RandomBot
 
@@ -105,23 +105,6 @@ def trainModelFromData(model, trainer, datapath, dataloader_conf):
     trainModel(model, trainer, getDataloader(datapath), dataloader_conf)
     #print(getError(model, dataloader.val_dataloader()))
 
-"""def testNet (net):
-    board = Board(10, True)
-    posMoves = board.movesAvailable()
-    positions = []
-    for (y, x) in posMoves:
-        if board.wouldWin(1, y, x):
-            return (y, x)
-        board.move(1, y, x)
-        positions.append((prepareInput(board.board, 2), (y,x)))
-        board.move(0, y, x)
-    tensor_data = [(torch.FloatTensor(x).float(), y) for (x,y) in positions]
-    dataloader = DataLoader(tensor_data, batch_size=256)
-    print(posMoves)
-
-    for (idx, batch) in enumerate(dataloader):
-        print (net(batch[0]))"""
-
 class PVBot:
     myColor = 1
     otherColor = 2
@@ -167,9 +150,9 @@ class PVBot:
 class MCTSPolicyValueBot:
     myColor = 1
     otherColor = 2
-    numIterations = 200
+    numIterations: int
 
-    def __init__(self, myColor, network):
+    def __init__(self, myColor, network = None, model_path = None, numIterations = 200, c_puct = 1):
         self.myColor = myColor
         self.otherColor = 3-myColor
         self.network = network
@@ -177,7 +160,8 @@ class MCTSPolicyValueBot:
             self.network = getModel (new=False, path=Path("../../2021-12-13/22-35-50/models/latest.ckpt"))
         self.network.eval()
         ### TODO: torch.no_grad()
-        self.c_puct = 10
+        self.numIterations = numIterations
+        self.c_puct = c_puct
 
     def getPV(self, s: Board):
         X = torch.FloatTensor(prepareInput(s.board,s.toMove)) 
@@ -205,7 +189,7 @@ class MCTSPolicyValueBot:
         if hash(s) not in self.visited:
             self.visited.add(hash(s))
             self.P[hash(s)], v = self.getPV(s)
-            return -v
+            return -float(v)
     
         max_u, best_a = -float("inf"), -1
         for a in s.movesAvailable():
@@ -215,13 +199,18 @@ class MCTSPolicyValueBot:
                 best_a = a
         a = best_a
         
+        #print (f"Explore a = {a}")
         s.move(*a)
         v = self.search(s)
         s.undoMove()
 
         
-        self.Q[hash(s)][a] = (self.N[s][a]*self.Q[hash(s)][a] + v)/(self.N[hash(s)][a]+1)
+        #print(f"Am Zug: {s.toMove}, a = {a}, v = {v}, Q = {self.Q[hash(s)][a]}, N = {self.N[hash(s)][a]}, hash = {hash(s)}")
+
+        self.Q[hash(s)][a] = (self.N[hash(s)][a] * self.Q[hash(s)][a] + v) / (self.N[hash(s)][a]+1)
         self.N[hash(s)][a] += 1
+
+        #print(f"Am Zug: {s.toMove}, a = {a}, v = {v}, Q = {self.Q[hash(s)][a]}, N = {self.N[hash(s)][a]}, hash = {hash(s)}")
         return -v
 
     def nextMove(self, board):
@@ -233,10 +222,11 @@ class MCTSPolicyValueBot:
         for _ in range(self.numIterations):
             self.search(board)
 
-        print (self.N[hash(board)])
-        print (self.Q[hash(board)])
-        print (self.P[hash(board)])
+        #print (self.N[hash(board)])
+        #print (self.Q[hash(board)])
+        #print (self.P[hash(board)])
 
+        ### Best move according to Q
         #bestval = float("-inf")
         #bestMove = None
         #for move in self.Q[hash(board)]:
@@ -245,10 +235,11 @@ class MCTSPolicyValueBot:
         #            bestval = self.Q[hash(board)][move]
         #            bestMove = move
 
-        mostMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
+        ### Best move according to N
+        bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
         
-        print(mostMove)
-        return mostMove
+        #print(bestMove)
+        return bestMove, self.Q[hash(board)]
 
 
 @hydra.main(config_path="conf", config_name="PVconfig")
@@ -268,23 +259,32 @@ def training(cfg: DictConfig):
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def testNet(cfg: DictConfig, network = None):
-    player2 = MCTSPolicyValueBot(2, network)
+    player2 = instantiate(cfg.mcts_bot, network=network, myColor=2) #MCTSPolicyValueBot(2, network)
     player1 = RandomBot(1, search_winning=True, search_losing=True)
 
     gameCounter = {-1:0, 0:0, 1:0}
+    moves = 0
     start = timer()
-    numGames=20
+    numGames=cfg.bot_test.num_games
+    games = []
     for i in range(numGames):
-        print(f"Game {i}:") 
+        print(f"Game {i}:")
         board = Board(SIZE, startPieces=True)
         game = simulate(board, player1, player2)
         gameCounter[game[1]] += 1
-        print(gameCounter)
+        moves += 1
+        print(f"{gameCounter} in {len(game[0])} moves")
 
-        if (game[1] == -1):
+        games.append(game)
+        if (cfg.bot_test.break_on_loose and game[1] == -1):
             break
 
+    if cfg.bot_test.store_games:
+        storeGames(games, cfg.bot_test.store_path)
+
+    print(i)
     end = timer()
+    print(f'Total moves: {moves}, moves per game {moves/i}')
     print(f'elapsed time: {end - start} s')
     print(f'per Game: {(end - start)/numGames} s')
     print(gameCounter)
@@ -292,4 +292,6 @@ def testNet(cfg: DictConfig, network = None):
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
     #training()
+    #print("Name of the current directory : " + os.path.basename(os.getcwd()))
+    #print(sys.path)
     testNet()

@@ -41,7 +41,7 @@ def simulate(board, player1, player2, startPlayer = 1):
     toMove = startPlayer-1
     positions = []
     while True:
-        print(board)
+        #print(board)
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
@@ -51,8 +51,9 @@ def simulate(board, player1, player2, startPlayer = 1):
             result = 0
             #print("no more moves possible -> draw")
             break
-        move = players[toMove].nextMove(board)
-        positions.append(json.dumps((board.board, move, toMove+1)))
+        move, Y_policy = players[toMove].nextMove(board)
+        positions.append((board.board, toMove+1, Y_policy))
+        print(move)
         move_y, move_x = move
         board.move(move_y, move_x)
         toMove = 1-toMove
@@ -62,6 +63,14 @@ def simulate(board, player1, player2, startPlayer = 1):
 
     return (positions, result)
 
+def storeGames(games, path = "data.json"):
+    with open(Path(path), "a") as f:
+        for game in games:
+            positions, result = game
+            for position in positions:
+                for position in positions: #[-2:]:
+                    f.write(json.dumps(position) + "\n")
+                    f.write(json.dumps(result) + "\n")
 
 def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)

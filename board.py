@@ -88,6 +88,9 @@ class Board:
         return 0
 
     def gameResult(self):
+        """
+        @return:    -1 if playerId=1 has won, 1 if playerId=2 has won, 0 for draws, None if the game is not terminated
+        """
         if len(self.movesAvailable()) == 0:
             return 0
         else:
