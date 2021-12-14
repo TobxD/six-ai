@@ -41,7 +41,7 @@ def simulate(board, player1, player2, startPlayer = 1):
     toMove = startPlayer-1
     positions = []
     while True:
-        #print(board)
+        print(board)
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
@@ -54,7 +54,7 @@ def simulate(board, player1, player2, startPlayer = 1):
         move = players[toMove].nextMove(board)
         positions.append(json.dumps((board.board, move, toMove+1)))
         move_y, move_x = move
-        board.move(toMove+1, move_y, move_x)
+        board.move(move_y, move_x)
         toMove = 1-toMove
         moveNum += 1
     posCnt[result] += moveNum

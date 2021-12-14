@@ -115,7 +115,7 @@ class NNBot:
         #print("win prob of other:", bestProb)
         return bestMove
 
-class MCTSBot:
+class MCTSValueBot:
     myColor = 1
     otherColor = 2
 

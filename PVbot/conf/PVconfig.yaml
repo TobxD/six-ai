@@ -24,7 +24,7 @@ train:
 
 pl_trainer: 
   weights_summary: top
-  max_epochs: 50
+  max_epochs: 5
   #progress_bar_refresh_rate: 25
   gpus: 1
   auto_lr_find: false

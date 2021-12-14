@@ -1,8 +1,13 @@
 from util import *
+import numpy
 
 class Board:
     size = 10
     board = [[0]*10 for i in range(10)]
+    toMove = 1
+    moves = []
+    hashMatrix = []
+    hashValue = 0
 
     def __init__(self, size, startPieces=False):
         self.size = size
@@ -11,12 +16,37 @@ class Board:
             mid = (size-1)//2
             self.board[mid][mid] = 1
             self.board[mid][mid+1] = 2
+        self.hashMatrix = numpy.random.randint(low=0,high=2**31-1,size=(3,size,size)).tolist()
+        for y in range(self.size):
+            for x in range(self.size):
+                self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
 
-    def move(self, color, y, x):
-        self.board[y][x] = color
+    def move(self, y, x):
+        if self.board[y][x] != 0:
+            print ("error!", y,x)
+            exit(1)
+
+        self.moves.append((y,x))
+        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self.board[y][x] = self.toMove
+        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self._flipMove()
+
+    def undoMove(self):
+        y, x = self.moves.pop()
+        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self.board[y][x] = 0
+        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self._flipMove()
+
+    def _flipMove(self):
+        self.toMove = 3-self.toMove
 
     def __getitem__(self, y, x):
         return self.board[y][x]
+    
+    def __hash__(self) -> int:
+        return self.hashValue
 
     def inBounds(self, y, x):
         return y >= 0 and y < self.size and x >= 0 and x < self.size
@@ -39,14 +69,14 @@ class Board:
         return 0
 
     def wouldWin(self, color, y, x):
-        self.move(color, y, x)
+        self.board[y][x] = color
         for shape in shapes:
             for (y_dif, x_dif) in shape:
                 winner = self.hasSpecificWinningShape(y-y_dif, x-x_dif, shape)
                 if winner != 0:
-                    self.move(0, y, x)
+                    self.board[y][x] = 0
                     return True
-        self.move(0, y, x)
+        self.board[y][x] = 0
         return False
 
     def hasWon(self):
@@ -56,6 +86,13 @@ class Board:
                 if winner != 0:
                     return winner
         return 0
+
+    def gameResult(self):
+        if len(self.movesAvailable()) == 0:
+            return 0
+        else:
+            hasWon = self.hasWon()
+            return hasWon*2-3 if hasWon != 0 else None
 
     def __str__(self):
         res = ""
