@@ -227,6 +227,8 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
         super().__init__(**network_conf)
         self.save_hyperparameters()  # type: ignore
 
+        self.train_conf = train_conf
+
         # metrics
         self.train_accuracy = torchmetrics.MeanSquaredError()
         self.val_accuracy = torchmetrics.MeanSquaredError()
@@ -298,10 +300,7 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
         # https://github.com/leela-zero/leela-zero/blob/db5569ce8d202f77154f288c21d3f2fa228f9aa3/training/tf/tfprocess.py#L190-L191
         sgd_opt = torch.optim.SGD(
             self.parameters(),
-            lr=self.hparams.train_conf.learning_rate,
-            momentum=0.9,
-            nesterov=True,
-            weight_decay=1e-4,
+            **self.train_conf.optimizer
         )
         return {
             "optimizer": sgd_opt,

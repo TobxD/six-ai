@@ -55,18 +55,12 @@ class PolicyData(LightningDataModule):
         return DataLoader(self.val_data, **dataloader_conf)
 
 def getModel(cfg = None, new = True, path = None):
-    hparams = {
-        #also good: 5e-4
-        'lr': 1e-3,
-        'reg': 0,
-        'channels': 20
-    }
     if new:
         return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
     else:
         if path == None:
             path = Path("models/latest.ckpt")
-        return PVnet.load_from_checkpoint(path, s=SIZE, hparams=hparams)
+        return PVnet.load_from_checkpoint(path, s=SIZE, train_conf=cfg.train)
 
 def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig):
     trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
@@ -86,10 +80,11 @@ def readDataWithPolicy(filename):
         print(f"Lines in data file: {len(lines)}")
         lines = [line[:-1] for line in lines]
         for i in range(0, len(lines), 2):
+            #print(i)
+            #print(lines[i])
             board, toMove, y_policy = json.loads(lines[i])
             result = int(lines[i+1])
             data.append((prepareInput(board, toMove), prepareOutput(y_policy, float(result) if toMove == 2 else float(-result))))
-            #print(i)
     return data
 
 def getDataloader(datapath):
@@ -98,10 +93,6 @@ def getDataloader(datapath):
     dataloader = PolicyData(data, batch_size=1024)
     dataloader.prepare_data()
     return dataloader
-
-def trainModelFromData(model, trainer, datapath, dataloader_conf):
-    trainModel(model, trainer, getDataloader(datapath), dataloader_conf)
-    #print(getError(model, dataloader.val_dataloader()))
 
 class PVBot:
     myColor = 1
@@ -258,7 +249,8 @@ class MCTSPolicyValueBot:
 @hydra.main(config_path="conf", config_name="PVconfig")
 def training(cfg: DictConfig):
     print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
-    network = getModel(cfg)
+    #network = getModel(cfg)
+    network = getModel (new=False, path=Path("../../2021-12-13/21-45-46/models/latest.ckpt"), cfg=cfg)
     print(network)
 
     trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
@@ -267,14 +259,14 @@ def training(cfg: DictConfig):
 
     seed_everything(42, workers=True)
     #testNet(network)
-    trainModelFromData(network, trainer, cfg.data.train_data_path, cfg.data.train_dataloader_conf)
+    trainModel(network, trainer, getDataloader(cfg.data.train_data_path), cfg.data.train_dataloader_conf)
     #testNet(network)
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def testNet(cfg: DictConfig, network = None):
-    player2 = instantiate(cfg.mcts_bot, network=network, myColor=2, randomMove = True) #MCTSPolicyValueBot(2, network)
-    player1 = instantiate(cfg.mcts_bot, network=network, myColor=1, randomMove = False) #MCTSPolicyValueBot(2, network)
-    #player1 = RandomBot(1, search_winning=True, search_losing=True)
+    player2 = instantiate(cfg.mcts_bot, network=network, myColor=2, randomMove = False) #MCTSPolicyValueBot(2, network)
+    #player1 = instantiate(cfg.mcts_bot, network=network, myColor=1, randomMove = True) #MCTSPolicyValueBot(2, network)
+    player1 = RandomBot(1, search_winning=True, search_losing=True)
 
     gameCounter = {-1:0, 0:0, 1:0}
     moves = 0
@@ -282,11 +274,11 @@ def testNet(cfg: DictConfig, network = None):
     numGames=cfg.bot_test.num_games
     games = []
     for i in range(numGames):
-        print(f"Game {i}:")
+        print(f"Game {i+1}:")
         board = Board(SIZE, startPieces=True)
         game = simulate(board, player1, player2)
         gameCounter[game[1]] += 1
-        moves += 1
+        moves += len(game[0])
         print(f"{gameCounter} in {len(game[0])} moves")
 
         games.append(game)
@@ -306,7 +298,7 @@ def testNet(cfg: DictConfig, network = None):
 
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
-    #training()
+    training()
     #print("Name of the current directory : " + os.path.basename(os.getcwd()))
     #print(sys.path)
-    testNet()
+    #testNet()
