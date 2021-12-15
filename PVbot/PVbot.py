@@ -150,8 +150,9 @@ class MCTSPolicyValueBot:
     otherColor = 2
     numIterations: int
 
-    def __init__(self, myColor, network = None, model_path = None, numIterations = 200, c_puct = 1):
+    def __init__(self, myColor, randomMove = False, network = None, model_path = None, numIterations = 200, c_puct = 1):
         self.myColor = myColor
+        self.randomMove = randomMove
         self.otherColor = 3-myColor
         self.network = network
         if not network:
@@ -193,7 +194,7 @@ class MCTSPolicyValueBot:
     
         max_u, best_a = -float("inf"), -1
         for a in s.movesAvailable():
-            u = self.Q[hash(s)][a] + self.c_puct*self.P[hash(s)][a]*math.sqrt(sum(self.N[hash(s)].values()))/(1+self.N[hash(s)][a])
+            u = self.Q[hash(s)][a] + self.c_puct*self.P[hash(s)][a]*math.sqrt(1+sum(self.N[hash(s)].values()))/(1+self.N[hash(s)][a])
             if u>max_u:
                 max_u = u
                 best_a = a
@@ -235,13 +236,24 @@ class MCTSPolicyValueBot:
         #            bestval = self.Q[hash(board)][move]
         #            bestMove = move
 
-        ### Best move according to N
-        bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
         
         #print(bestMove)
         N = self.N[hash(board)]
         sumVal = sum(N.values())
-        return bestMove, {key:N[key]/sumVal for key in N}
+        policy = {key:N[key]/sumVal for key in N}
+
+        if self.randomMove:
+            cutoff = random.random()
+            bestMove = policy[list(policy.keys())[0]]
+            for move in policy:
+                cutoff -= policy[move]
+                if cutoff <= 0:
+                    bestMove = move
+                    break
+        else:
+            ### Best move according to N
+            bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
+        return bestMove, policy
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def training(cfg: DictConfig):
@@ -260,8 +272,9 @@ def training(cfg: DictConfig):
 
 @hydra.main(config_path="conf", config_name="PVconfig")
 def testNet(cfg: DictConfig, network = None):
-    player2 = instantiate(cfg.mcts_bot, network=network, myColor=2) #MCTSPolicyValueBot(2, network)
-    player1 = RandomBot(1, search_winning=True, search_losing=True)
+    player2 = instantiate(cfg.mcts_bot, network=network, myColor=2, randomMove = True) #MCTSPolicyValueBot(2, network)
+    player1 = instantiate(cfg.mcts_bot, network=network, myColor=1, randomMove = False) #MCTSPolicyValueBot(2, network)
+    #player1 = RandomBot(1, search_winning=True, search_losing=True)
 
     gameCounter = {-1:0, 0:0, 1:0}
     moves = 0
@@ -292,7 +305,7 @@ def testNet(cfg: DictConfig, network = None):
 
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
-    training()
+    #training()
     #print("Name of the current directory : " + os.path.basename(os.getcwd()))
     #print(sys.path)
-    #testNet()
+    testNet()

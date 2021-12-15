@@ -37,7 +37,7 @@ mcts_bot:
   c_puct: 2
 
 bot_test:
-  num_games: 2
+  num_games: 6
   break_on_loose: False
   store_games: True
   store_path: "../../../data/mcts_data.json"
