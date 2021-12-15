@@ -293,8 +293,9 @@ def testNet(cfg: DictConfig, network = None):
         if (cfg.bot_test.break_on_loose and game[1] == -1):
             break
 
-    if cfg.bot_test.store_games:
-        storeGames(games, cfg.bot_test.store_path)
+        if cfg.bot_test.store_games:
+            storeGames(games, cfg.bot_test.store_path)
+            games = []
 
     print(i)
     end = timer()
