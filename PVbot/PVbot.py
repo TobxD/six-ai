@@ -98,17 +98,17 @@ class PVBot:
     myColor = 1
     otherColor = 2
 
-    def __init__(self, myColor, network):
+    def __init__(self, myColor, model):
         self.myColor = myColor
         self.otherColor = 3-myColor
-        self.network = network
-        if not network:
-            self.model = getModel (new=False, path=Path("../../2021-12-13/21-45-46/models/latest.ckpt"))
+        if not model:
+            model = getModel (new=False, path=Path("../../2021-12-13/21-45-46/models/latest.ckpt"))
+        self.model = model
         self.model.eval()
 
     def nextMove(self,board:Board):
         #print (board, self.myColor)
-        X = torch.FloatTensor(prepareInput(board.board,self.myColor)) 
+        X = torch.FloatTensor(prepareInput(board.board,self.myColor))
         policy, value = self.model(X.unsqueeze(0))
         #validMoves = board.movesAvailableAsTensor()
         #validPolicy = policy * torch.flatten(torch.FloatTensor(validMoves))
@@ -145,18 +145,21 @@ class MCTSPolicyValueBot:
         self.myColor = myColor
         self.randomMove = randomMove
         self.otherColor = 3-myColor
+        self.device = torch.device("cuda")
+        #self.device = torch.device("cpu")
         self.network = network
         if not network:
             if not model_path:
                 model_path = "../../../models/latest.ckpt"
             self.network = getModel (new=False, path=Path(model_path))
+        self.network.to(self.device)
         self.network.eval()
         ### TODO: torch.no_grad()
         self.numIterations = numIterations
         self.c_puct = c_puct
 
     def getPV(self, s: Board):
-        X = torch.FloatTensor(prepareInput(s.board,s.toMove)) 
+        X = torch.FloatTensor(prepareInput(s.board,s.toMove)).to(self.device)
         policy, value = self.network(X.unsqueeze(0))
         movesAvailable = s.movesAvailable()
         policyForSoftmax = []
@@ -291,10 +294,14 @@ def testNet(cfg: DictConfig, network = None):
 
     print(i)
     end = timer()
-    print(f'Total moves: {moves}, moves per game {moves/i}')
+    print(f'Total moves: {moves}, moves per game {moves/numGames}')
     print(f'elapsed time: {end - start} s')
     print(f'per Game: {(end - start)/numGames} s')
+    print(f'per Move: {(end - start)/moves} s')
     print(gameCounter)
+    print('Memory Usage:')
+    print('Allocated:', round(torch.cuda.memory_allocated(0),1), 'B')
+    print('Cached:   ', round(torch.cuda.memory_reserved(0),1), 'B')
 
 if __name__ == "__main__":
     #data = readDataWithPolicy(Path("data/data.json"))
