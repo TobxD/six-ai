@@ -8,11 +8,10 @@ sys.path.append('.')
 from datetime import datetime
 
 import torch
-from hydra.utils import instantiate
+from hydra.utils import instantiate, to_absolute_path
 from omegaconf.dictconfig import DictConfig
 
 from board import Board, SIZE
-from pathlib import Path
 
 def getMCTSBot(cfg: DictConfig, color, network=None, randomMove=False):
     print(cfg)
@@ -36,8 +35,8 @@ class MCTSPolicyValueBot:
         self.network = network
         if not network:
             if not model_path:
-                model_path = "../../../models/latest.ckpt"
-            self.network = PVnet.getModel(cfg, new=False, path=Path(model_path))
+                model_path = "models/latest.ckpt"
+            self.network = PVnet.getModel(cfg, new=False, path=to_absolute_path(model_path))
         self.network.to(self.device)
         self.network.eval()
         ### TODO: torch.no_grad()

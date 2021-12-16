@@ -93,7 +93,6 @@ def generateGames(cnt, randomColor):
                         f.write(json.dumps(result) + "\n")
             print(gameCounter)
 
-@hydra.main(config_path="conf", config_name="PVconfig")
 def playGames(cfg:DictConfig):
     #player1 = MCTS_PVBot.getMCTSBot(color=1, network=None, randomMove=False)
     player2 = MCTS_PVBot.getMCTSBot(cfg, 2, network=None, randomMove=False)
@@ -128,6 +127,10 @@ def playGames(cfg:DictConfig):
     print(f'per Move: {(end - start)/moves} s')
     print(gameCounter)
 
+@hydra.main(config_path="conf", config_name="PVconfig")
+def main(cfg: DictConfig):
+    #PVbot_util.training(cfg)
+    playGames(cfg)
+
 if __name__ == "__main__":
-    PVbot_util.training()
-    #playGames()
+    main()

@@ -20,7 +20,7 @@ from board import Board, SIZE
 from PVnet import PVnet
 from pathlib import Path
 import hydra
-from hydra.utils import instantiate
+from hydra.utils import instantiate, to_absolute_path
 
 from pytorch_lightning import Trainer, seed_everything
 
@@ -33,7 +33,7 @@ class PVBot:
         self.myColor = myColor
         self.otherColor = 3-myColor
         if not model:
-            model = PVnet.getModel(new=False, path=Path("../../2021-12-13/21-45-46/models/latest.ckpt"))
+            model = PVnet.getModel(new=False, path=to_absolute_path("models/latest.ckpt"))
         self.model = model
         self.model.eval()
 

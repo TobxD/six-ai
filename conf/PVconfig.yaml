@@ -1,6 +1,6 @@
 # @package _global_
 data:
-  train_data_path: "../../../data/backup/mcts_data_100k.json"
+  train_data_path: "data/mcts_data_100k.json"
   val_data_dir: data/val
   test_data_dir: data/test
   train_dataloader_conf:
@@ -31,7 +31,7 @@ train:
 
 pl_trainer: 
   weights_summary: top
-  max_epochs: 50
+  max_epochs: 1
   #progress_bar_refresh_rate: 25
   gpus: 1
   auto_lr_find: false
@@ -39,13 +39,12 @@ pl_trainer:
 
 #### PLAY ####
 mcts_bot:
-  #_target_: MCTSPolicyValueBot
-  model_path: "../../../models/random_trained.ckpt" #"../../../models/gen2.0.ckpt" #
-  numIterations: 5
+  model_path: "models/gen2.1.ckpt"
+  numIterations: 50
   c_puct: 2
 
 bot_test:
-  num_games: 2 #1000
+  num_games: 20 #1000
   break_on_loose: False
   store_games: False
-  store_path: "../../../data/games_gen2.1.json"
+  store_path: "data/games_gen2.1.json"

@@ -3,7 +3,7 @@ from pathlib import Path
 import random
 import numpy as np
 import hydra
-from hydra.utils import instantiate
+from hydra.utils import instantiate, to_absolute_path
 from torch._C import device
 #from pytorch_lightning import LightningModule, Trainer, LightningDataModule
 import torchmetrics
@@ -313,10 +313,10 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
             "monitor": "val_loss",
         }
 
-def getModel(cfg = None, new = True, path = None):
+def getModel(cfg, new = True, path = None):
     if new:
         return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
     else:
         if path == None:
-            path = Path("models/latest.ckpt")
-        return PVnet.load_from_checkpoint(path, s=SIZE, train_conf=cfg.train)
+            path = to_absolute_path("models/latest.ckpt")
+        return PVnet.load_from_checkpoint(path, s=SIZE, train_conf=cfg.train, network_conf=cfg.network_conf)

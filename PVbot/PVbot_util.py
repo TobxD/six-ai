@@ -20,7 +20,7 @@ from board import Board, SIZE
 from PVbot import PVnet
 from pathlib import Path
 import hydra
-from hydra.utils import instantiate
+from hydra.utils import instantiate, to_absolute_path
 
 from pytorch_lightning import Trainer, seed_everything
 
@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig):
     trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
-    trainer.save_checkpoint(Path("models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
-    trainer.save_checkpoint(Path("models/latest.ckpt"))
+    trainer.save_checkpoint(to_absolute_path("models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
+    trainer.save_checkpoint(to_absolute_path("models/latest.ckpt"))
+    trainer.save_checkpoint(Path("models/model.ckpt"))
 
 
 def readDataWithPolicy(filename):
@@ -47,18 +48,16 @@ def readDataWithPolicy(filename):
     return data
 
 def getDataloader(datapath):
-    data = readDataWithPolicy(Path(datapath))
+    data = readDataWithPolicy(to_absolute_path(datapath))
     #pprint(data[0])
     dataloader = PVData.PVData(data, batch_size=1024)
     dataloader.prepare_data()
     return dataloader
 
-
-@hydra.main(config_path="conf", config_name="PVconfig.yaml")
 def training(cfg: DictConfig):
     print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
     #network = getModel(cfg)
-    network = PVnet.getModel(cfg, new=False, path=Path("../../2021-12-13/21-45-46/models/latest.ckpt"), cfg=cfg)
+    network = PVnet.getModel(new=False, path=to_absolute_path("models/latest.ckpt"), cfg=cfg)
     print(network)
 
     trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
