@@ -1,35 +1,9 @@
-from board import Board
-from util import *
+from board import Board, SIZE
 from randomBot import RandomBot
-#from nnBot import NNBot, MCTSBot
 import json, random
 from pathlib import Path
 import multiprocessing as mp
 from timeit import default_timer as timer
-
-
-def testWinDetection():
-    new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
-    for shape in new_shapes:
-        b = Board(15)
-        for (y,x) in shape:
-            b.move(1, y, x)
-        print(b.hasWon())
-        assert(b.hasWon() == 1)
-        print(b)
-        print(b.movesAvailable())
-
-def testWouldWin():
-    new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in shapes]
-    for shape in new_shapes:
-        for i in range(len(shape)):
-            b = Board(15)
-            for j in range(len(shape)-1):
-                y, x = shape[(i+j+1)%len(shape)]
-                b.move(1, y, x)
-            y, x = shape[i]
-            #print(b)
-            assert(b.wouldWin(1, y, x))
 
 posCnt = {-1:0, 0:0, 1:0}
 gameCnt = {-1:0, 0:0, 1:0}
@@ -75,14 +49,11 @@ def storeGames(games, path = "data.json"):
 def testRandom(randomColor = False):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        #player1 = MCTSBot(1, numIterations=10)
         player1 = RandomBot(1, search_winning=True, search_losing=True)
-        #player1 = NNBot(1)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
     else:
         player1 = RandomBot(1, search_winning=True, search_losing=True)
         player2 = RandomBot(2, search_winning=True, search_losing=True)
-        #player2 = NNBot(2)
     return simulate(board, player1, player2)
 
 def collectGames(count: int):
@@ -117,7 +88,7 @@ def generateGames(cnt, randomColor):
                         f.write(json.dumps(result) + "\n")
             print(gameCounter)
 
-#testWinDetection()
-#testWouldWin()
+#testing.testWinDetection()
+#testing.testWouldWin()
 if __name__ == "__main__":
     generateGames(100000, randomColor=False)

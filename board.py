@@ -1,5 +1,24 @@
-from util import *
 import numpy
+
+SIZE = 10
+
+RED = 1
+BLACK = 2
+RIGHT = 0
+RIGHT_DOWN = 1
+LEFT_DOWN = 2
+LEFT = 3
+LEFT_UP = 4
+RIGHT_UP = 5
+
+shapes = [
+    [(0,0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)], # line 1
+    [(0,0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)], # line 2
+    [(0,0), (-1, 1), (-2, 2), (-3, 3), (-4, 4), (-5, 5)], # line 3
+    [(0,0), (1, 0), (2, 0), (0, 1), (1, 1), (0, 2)], # triangle 1
+    [(-2,2), (-1, 1), (-1, 2), (0, 0), (0, 1), (0, 2)], # triangle 2
+    [(0,0), (0, 1), (1, -1), (1, 1), (2, -1), (2, 0)], # circle
+]
 
 class Board:
     size = 10
@@ -113,7 +132,7 @@ class Board:
             for j in range(self.size):
                 if self.board[i][j] != 0:
                     for dir in range(6):
-                        y, x = moveTo(i, j, dir)
+                        y, x = self.getNextInDir(i, j, dir)
                         if self.inBounds(y, x) and self.board[y][x] == 0:
                             moves.add((y,x))
         return list(moves)
@@ -132,3 +151,15 @@ class Board:
 
     def convert2Dto1Dindex(self, index):
         return index[0]*self.size+index[1]
+
+    def getNextInDir(self, y, x, dir):
+        upd = {}
+        upd[RIGHT] = (0,1)
+        upd[RIGHT_DOWN] = (1,0)
+        upd[LEFT_DOWN] = (1,-1)
+        upd[LEFT] = (0,-1)
+        upd[LEFT_UP] = (-1, 0)
+        upd[RIGHT_UP] = (-1, 1)
+
+        y_dif, x_dif = upd[dir]
+        return (y+y_dif, x+x_dif)

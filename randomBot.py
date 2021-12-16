@@ -1,7 +1,6 @@
 import random
 
 from board import Board
-from util import *
 
 class RandomBot:
     myColor = 1

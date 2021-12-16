@@ -16,8 +16,7 @@ from main import simulate, storeGames
 
 from randomBot import RandomBot
 
-from nnBot import prepareInput
-from board import Board
+from board import Board, SIZE
 from PVnet import PVnet
 from pathlib import Path
 import hydra
@@ -25,7 +24,10 @@ from hydra.utils import instantiate
 
 from pytorch_lightning import Trainer, LightningDataModule, seed_everything
 
-from util import *
+def prepareInput(board, toMove):
+    ownBoard = [[float(x==toMove) for x in line] for line in board]
+    otherBoard = [[float(x==3-toMove) for x in line] for line in board]
+    return [ownBoard, otherBoard]
 
 logger = logging.getLogger(__name__)
 
