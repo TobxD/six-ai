@@ -22,3 +22,7 @@ def testWouldWin():
             y, x = shape[i]
             #print(b)
             assert(b.wouldWin(1, y, x))
+
+if __name__ == "__main__":
+    testWinDetection()
+    testWouldWin()

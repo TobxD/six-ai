@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import random
 import numpy as np
 import hydra
@@ -15,6 +16,8 @@ from pytorch_lightning import Trainer
 from torchvision.models.resnet import resnet18
 from typing import Tuple
 from omegaconf import DictConfig, OmegaConf
+
+from board import SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -309,3 +312,11 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
             ),
             "monitor": "val_loss",
         }
+
+def getModel(cfg = None, new = True, path = None):
+    if new:
+        return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
+    else:
+        if path == None:
+            path = Path("models/latest.ckpt")
+        return PVnet.load_from_checkpoint(path, s=SIZE, train_conf=cfg.train)

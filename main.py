@@ -1,9 +1,15 @@
 from board import Board, SIZE
 from randomBot import RandomBot
+import PVbot.PVbot_util as PVbot_util
+import PVbot.MCTS_PVBot as MCTS_PVBot
+
 import json, random
 from pathlib import Path
 import multiprocessing as mp
 from timeit import default_timer as timer
+
+import hydra
+from omegaconf.dictconfig import DictConfig
 
 posCnt = {-1:0, 0:0, 1:0}
 gameCnt = {-1:0, 0:0, 1:0}
@@ -42,7 +48,6 @@ def storeGames(games, path = "data.json"):
         for game in games:
             positions, result = game
             for position in positions:
-                #print(position)
                 f.write(json.dumps(position) + "\n")
                 f.write(json.dumps(result) + "\n")
 
@@ -88,7 +93,41 @@ def generateGames(cnt, randomColor):
                         f.write(json.dumps(result) + "\n")
             print(gameCounter)
 
-#testing.testWinDetection()
-#testing.testWouldWin()
+@hydra.main(config_path="conf", config_name="PVconfig")
+def playGames(cfg:DictConfig):
+    #player1 = MCTS_PVBot.getMCTSBot(color=1, network=None, randomMove=False)
+    player2 = MCTS_PVBot.getMCTSBot(cfg, 2, network=None, randomMove=False)
+    player1 = RandomBot(1, search_winning=True, search_losing=True)
+
+    gameCounter = {-1:0, 0:0, 1:0}
+    moves = 0
+    start = timer()
+    numGames=cfg.bot_test.num_games
+    games = []
+    for i in range(numGames):
+        print(f"Game {i+1}:")
+        board = Board(SIZE, startPieces=True)
+        game = simulate(board, player1, player2)
+        gameCounter[game[1]] += 1
+        moves += len(game[0])
+        print(f"{gameCounter} in {len(game[0])} moves")
+
+        games.append(game)
+        if (cfg.bot_test.break_on_loose and game[1] == -1):
+            break
+
+        if cfg.bot_test.store_games:
+            storeGames(games, cfg.bot_test.store_path)
+            games = []
+
+    print(i)
+    end = timer()
+    print(f'Total moves: {moves}, moves per game {moves/numGames}')
+    print(f'elapsed time: {end - start} s')
+    print(f'per Game: {(end - start)/numGames} s')
+    print(f'per Move: {(end - start)/moves} s')
+    print(gameCounter)
+
 if __name__ == "__main__":
-    generateGames(100000, randomColor=False)
+    PVbot_util.training()
+    #playGames()

@@ -39,13 +39,13 @@ pl_trainer:
 
 #### PLAY ####
 mcts_bot:
-  _target_: PVbot.MCTSPolicyValueBot
+  #_target_: MCTSPolicyValueBot
   model_path: "../../../models/random_trained.ckpt" #"../../../models/gen2.0.ckpt" #
-  numIterations: 150
+  numIterations: 5
   c_puct: 2
 
 bot_test:
-  num_games: 20 #1000
+  num_games: 2 #1000
   break_on_loose: False
   store_games: False
   store_path: "../../../data/games_gen2.1.json"
