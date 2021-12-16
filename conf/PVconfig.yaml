@@ -44,7 +44,7 @@ mcts_bot:
   c_puct: 2
 
 bot_test:
-  num_games: 20 #1000
-  break_on_loose: False
+  num_games: 10 #1000
+  break_on_loose: True
   store_games: False
   store_path: "data/games_gen2.1.json"

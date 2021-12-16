@@ -12,7 +12,7 @@ class RandomBot:
         self.search_winning = search_winning
         self.search_losing = search_losing
 
-    def nextMove(self, board):
+    def nextMove(self, board: Board):
         posMoves = board.movesAvailable()
         bestMoves = []
         if self.search_winning:

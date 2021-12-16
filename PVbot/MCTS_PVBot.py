@@ -5,13 +5,12 @@ import PVbot.PVnet as PVnet
 import PVbot.PVData as PVData
 
 sys.path.append('.')
-from datetime import datetime
 
 import torch
-from hydra.utils import instantiate, to_absolute_path
+from hydra.utils import to_absolute_path
 from omegaconf.dictconfig import DictConfig
 
-from board import Board, SIZE
+from board import Board
 
 def getMCTSBot(cfg: DictConfig, color, network=None, randomMove=False):
     print(cfg)
@@ -93,6 +92,19 @@ class MCTSPolicyValueBot:
         #print(f"Am Zug: {s.toMove}, a = {a}, v = {v}, Q = {self.Q[hash(s)][a]}, N = {self.N[hash(s)][a]}, hash = {hash(s)}")
         return -v
 
+    def printMCTS (self, board, N: defaultdict, Q, P, bestMove):
+        # docu at: https://docs.python.org/3/library/string.html#formatstrings
+        TGREEN =  '\033[32m'
+        ENDC = '\033[m'
+
+        print (board)
+        print("{:^5} {:^5} {:^7} {:^7}".format("move", "N", "Q", "P"))
+        for key in sorted(N.keys()):
+            print(  (TGREEN if key==bestMove else '') + 
+                    "{:^5} {:^5} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in key), N[key], Q[key], float(P[key])) +
+                    (ENDC if key==bestMove else ''))
+        print (bestMove)
+
     def nextMove(self, board):
         self.N = defaultdict(lambda: defaultdict(lambda: 0))
         self.Q = defaultdict(lambda: defaultdict(lambda: 0))
@@ -101,10 +113,6 @@ class MCTSPolicyValueBot:
 
         for _ in range(self.numIterations):
             self.search(board)
-
-        #print (self.N[hash(board)])
-        #print (self.Q[hash(board)])
-        #print (self.P[hash(board)])
 
         ### Best move according to Q
         #bestval = float("-inf")
@@ -116,7 +124,6 @@ class MCTSPolicyValueBot:
         #            bestMove = move
 
         
-        #print(bestMove)
         N = self.N[hash(board)]
         sumVal = sum(N.values())
         policy = {key:N[key]/sumVal for key in N}
@@ -132,4 +139,8 @@ class MCTSPolicyValueBot:
         else:
             ### Best move according to N
             bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
+
+        self.printMCTS(board, self.N[hash(board)], self.Q[hash(board)], self.P[hash(board)], bestMove)
         return bestMove, policy
+
+   

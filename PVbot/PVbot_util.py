@@ -1,28 +1,15 @@
-from collections import defaultdict
-import json, os, sys, logging, random
-import math
-from typing import Dict
-
+import json
+import logging
 #sys.path.append('.')
 from datetime import datetime
-from timeit import default_timer as timer
+from pathlib import Path
 
+from hydra.utils import instantiate, to_absolute_path
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
-import torch
-from torch.utils import data
-from main import simulate, storeGames
-
-from randomBot import RandomBot
-from PVbot import PVData
-
-from board import Board, SIZE
-from PVbot import PVnet
-from pathlib import Path
-import hydra
-from hydra.utils import instantiate, to_absolute_path
-
 from pytorch_lightning import Trainer, seed_everything
+
+from PVbot import PVData, PVnet
 
 logger = logging.getLogger(__name__)
 
