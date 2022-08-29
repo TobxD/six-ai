@@ -8,16 +8,19 @@ from hydra.utils import instantiate, to_absolute_path
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.loggers import TensorBoardLogger
 
 from PVbot import PVData, PVnet
 
 logger = logging.getLogger(__name__)
 
-def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig):
+def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig, save_path = None):
     trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
     trainer.save_checkpoint(to_absolute_path("models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
     trainer.save_checkpoint(to_absolute_path("models/latest.ckpt"))
     trainer.save_checkpoint(Path("models/model.ckpt"))
+    if save_path != None:
+        trainer.save_checkpoint(Path(save_path))
 
 
 def readDataWithPolicy(filename):
@@ -41,17 +44,20 @@ def getDataloader(datapath):
     dataloader.prepare_data()
     return dataloader
 
-def training(cfg: DictConfig):
+def training(cfg: DictConfig, baseNetPath=None, save_path = None):
     print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
+    if baseNetPath == None:
+        baseNetPath = to_absolute_path("models/latest.ckpt")
     #network = getModel(cfg)
-    network = PVnet.getModel(new=False, path=to_absolute_path("models/latest.ckpt"), cfg=cfg)
+    network = PVnet.getModel(new=False, path=baseNetPath, cfg=cfg)
     print(network)
 
-    trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
-    trainer = Trainer(**cfg.pl_trainer, logger=trainer_logger)
+    #trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
+    trainer_logger = TensorBoardLogger(to_absolute_path("lightning_logs"))
+    trainer = Trainer(**cfg.pl_trainer, logger=trainer_logger, log_every_n_steps=5)
     #trainer.fit(network,data)
 
-    seed_everything(42, workers=True)
+    #seed_everything(42, workers=True)
     #testNet(network)
-    trainModel(network, trainer, getDataloader(cfg.data.train_data_path), cfg.data.train_dataloader_conf)
+    trainModel(network, trainer, getDataloader(cfg.data.train_data_path), cfg.data.train_dataloader_conf, save_path)
     #testNet(network)

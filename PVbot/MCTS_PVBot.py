@@ -11,12 +11,12 @@ from hydra.utils import to_absolute_path
 from omegaconf.dictconfig import DictConfig
 
 from board import Board
+from timing import profiler
+
+CPU_DEVICE = torch.device("cpu")
 
 def getMCTSBot(cfg: DictConfig, color, network=None, randomMove=False):
     print(cfg)
-    color = 2
-    network = None
-    randomMove = False
     bot = MCTSPolicyValueBot(**cfg.mcts_bot, cfg = cfg, network=network, myColor=color, randomMove=randomMove) #MCTSPolicyValueBot(2, network)
     return bot
 
@@ -43,20 +43,36 @@ class MCTSPolicyValueBot:
         self.c_puct = c_puct
 
     def getPV(self, s: Board):
-        X = torch.FloatTensor(PVData.prepareInput(s.board,s.toMove)).to(self.device)
-        policy, value = self.network(X.unsqueeze(0))
-        movesAvailable = s.movesAvailable()
-        policyForSoftmax = []
-        policy = policy.tolist()[0]
-        for move in movesAvailable:
-            policyForSoftmax.append(policy[s.convert2Dto1Dindex(move)])
-        policyForSoftmax = torch.softmax(torch.FloatTensor(policyForSoftmax),0)
-        P = {}
-        for move, probability in zip(movesAvailable,policyForSoftmax):
-            #validPolicy[s.convert2Dto1Dindex(move)] = policyForSoftmax[i]
-            P[move] = probability
+        with profiler.getProfiler("getPV"):
+            with profiler.getProfiler("prepare input data"):
+                inputData = PVData.prepareInput(s.board,s.toMove)
+            with profiler.getProfiler("create input tensor"):
+                X = torch.FloatTensor(inputData).to(self.device).unsqueeze(0)
+                X = X.repeat(1, 1, 1, 1)
+            with profiler.getProfiler("eval network"):
+                policy, value = self.network(X)
+            with profiler.getProfiler("moves avail"):
+                movesAvailable = s.movesAvailable()
+            with profiler.getProfiler("prep policy for softmax"):
+                policyForSoftmax = []
+                policy = policy[0].to(CPU_DEVICE)
+                with profiler.getProfiler("iterate over moves avail"):
+                    possibleMoves = torch.zeros(s.size**2, dtype=torch.bool, device=CPU_DEVICE)
+                    for move in movesAvailable:
+                        possibleMoves[s.convert2Dto1Dindex(move)] = True
+                        #policyForSoftmax.append(policy[s.convert2Dto1Dindex(move)])
+                with profiler.getProfiler("convert policy to torch"):
+                    #print(policyForSoftmax)
+                    #policyTorch = torch.FloatTensor(policyForSoftmax)
+                    policyTorch = policy[possibleMoves]
+                with profiler.getProfiler("actual softmax"):
+                    policyForSoftmax = torch.softmax(policyTorch,0)
+            P = {}
+            for move, probability in zip(movesAvailable,policyForSoftmax):
+                #validPolicy[s.convert2Dto1Dindex(move)] = policyForSoftmax[i]
+                P[move] = probability
 
-        return P, value
+        return P, value[0]
 
     def search(self, s: Board):
         gameResult = s.gameResult()
@@ -111,8 +127,9 @@ class MCTSPolicyValueBot:
         self.P = {}
         self.visited = set()
 
-        for _ in range(self.numIterations):
-            self.search(board)
+        with profiler.getProfiler("mcts iterations"):
+            for _ in range(self.numIterations):
+                self.search(board)
 
         ### Best move according to Q
         #bestval = float("-inf")

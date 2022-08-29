@@ -1,4 +1,5 @@
 import board
+from timing import profiler
 
 def testWinDetection():
     new_shapes = [[(y+5, x+5) for (y,x) in shape] for shape in board.shapes]
@@ -23,6 +24,19 @@ def testWouldWin():
             #print(b)
             assert(b.wouldWin(1, y, x))
 
+def testProfiler():
+    with profiler.getProfiler("test1"):
+        cnt = 0
+        for i in range(10**6):
+            cnt += 1
+    with profiler.getProfiler("test1"):
+        with profiler.getProfiler("test2"):
+            cnt = 0
+            for i in range(10**7):
+                cnt += 1
+    profiler.printStats()
+
 if __name__ == "__main__":
-    testWinDetection()
-    testWouldWin()
+    #testWinDetection()
+    #testWouldWin()
+    testProfiler()

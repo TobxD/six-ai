@@ -3,3 +3,4 @@ data
 lightning_logs
 models
 outputs
+lightning_logs_old

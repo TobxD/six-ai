@@ -36,7 +36,7 @@ class PVData(LightningDataModule):
         #self.val_data = self.val_data[:256]
 
     def train_dataloader(self, dataloader_conf: DictConfig):
-        return DataLoader(self.train_data, **dataloader_conf)
+        return DataLoader(self.train_data, shuffle=True, **dataloader_conf)
 
     def val_dataloader(self, dataloader_conf: DictConfig):
-        return DataLoader(self.val_data, **dataloader_conf)
+        return DataLoader(self.val_data, shuffle=True, **dataloader_conf)

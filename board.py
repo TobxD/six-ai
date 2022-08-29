@@ -61,7 +61,8 @@ class Board:
     def _flipMove(self):
         self.toMove = 3-self.toMove
 
-    def __getitem__(self, y, x):
+    def __getitem__(self, yx_tuple):
+        y, x = yx_tuple
         return self.board[y][x]
     
     def __hash__(self) -> int:

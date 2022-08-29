@@ -307,10 +307,10 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
         )
         return {
             "optimizer": sgd_opt,
-            "lr_scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
-                sgd_opt, verbose=True, min_lr=5e-6
-            ),
-            "monitor": "val_loss",
+            #"lr_scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
+            #    sgd_opt, verbose=True, min_lr=5e-6
+            #),
+            #"monitor": "val_loss",
         }
 
 def getModel(cfg, new = True, path = None):
