@@ -1,3 +1,4 @@
+from pprint import pprint
 from board import Board, SIZE
 from randomBot import RandomBot
 import PVbot.PVbot_util as PVbot_util
@@ -21,18 +22,18 @@ posCnt = {-1:0, 0:0, 1:0}
 gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
-def simulate(board, player1, player2, game_viewer, startPlayer = 1):
+def simulate(board, player1, player2, gvQ=None, drawInd = None, startPlayer = 1):
     moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
     positions = []
     while True:
-        game_viewer.drawBoard(board)
-        #print(board)
+        if gvQ:
+            gvQ.put((drawInd, board))
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
-            #print(winner, "has won after", moveNum, "moves")
+            print(winner, "has won after", moveNum, "moves")
             break
         if len(board.movesAvailable()) == 0:
             result = 0
@@ -53,7 +54,9 @@ def simulate(board, player1, player2, game_viewer, startPlayer = 1):
 
     return (positions, result)
 
-def storeGames(games, path = "data.json"):
+def storeGames(games, path=None):
+    if path==None:
+        return
     with open(Path(path), "a") as f:
         for game in games:
             positions, result = game
@@ -61,51 +64,62 @@ def storeGames(games, path = "data.json"):
                 f.write(json.dumps(position) + "\n")
                 f.write(json.dumps(result) + "\n")
 
-def testRandom(randomColor = False):
+def gameStats(games):
+    gameCounter = {-1:0, 0:0, 1:0}
+    posCounter = 0
+    for game in games:
+        pprint(game)
+        (positions, result) = game
+        gameCounter[result] += 1
+        posCounter += len(positions)
+    return (gameCounter, posCounter)
+
+def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
+    if player_cfg.player_type == "mcts_nn":
+        return MCTS_PVBot.getMCTSBot(player_cfg, cfg=cfg, color=color, network=None, randomMove=player_cfg.randomMove)
+    else:
+        exit(1)
+
+def playGame(cfg, randomColor, q, drawInd):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        player1 = RandomBot(1, search_winning=True, search_losing=True)
-        player2 = RandomBot(2, search_winning=True, search_losing=True)
+        player1 = getPlayer(cfg.player1, cfg, 1)
+        player2 = getPlayer(cfg.player2, cfg, 2)
     else:
-        player1 = RandomBot(1, search_winning=True, search_losing=True)
-        player2 = RandomBot(2, search_winning=True, search_losing=True)
-    return simulate(board, player1, player2)
+        player1 = getPlayer(cfg.player2, cfg, 2)
+        player2 = getPlayer(cfg.player1, cfg, 1)
+    return simulate(board, player1, player2, q, drawInd)
 
-def collectGames(count: int):
+def collectGames(cfg, count: int, q, drawInd):
     data = []
     for i in range(count):
-        data.append(testRandom(randomColor=False))
+        data.append(playGame(cfg, cfg.play.random_color, q, drawInd))
 
     return data
 
-def generateGames(cnt, randomColor):
-    workers = mp.cpu_count() - 2
-    print(f"Executing on {workers} of your {mp.cpu_count()} CPUs")
-    print(f"Estimated time (4 games per process per second): {cnt/workers//4} s")
-
-    part_count = [cnt//workers for i in range(workers)]
+def generateGames(cfg, gv_queue):
+    workers = min(cfg.play.workers, cfg.play.num_games)
+    cfg.play.num_games -= cfg.play.num_games % workers
+    print(f"Executing {cfg.play.num_games} games on {workers} of your {mp.cpu_count()} CPUs")
 
     start = timer()
     with mp.Pool(processes=workers) as pool:
-        data = pool.map(collectGames,part_count)
+        args = [(cfg, cfg.play.num_games//workers, gv_queue, i) for i in range(workers)]
+        data = pool.starmap(collectGames, args)
         end = timer()
         print(f'elapsed time: {end - start} s')
-        print(f'per Game: {(end - start)/cnt} s')
+        print(f'per Game: {(end - start)/cfg.play.num_games} s')
 
-        with open(Path("data/policy_data.json"), "a") as f:
-            gameCounter = {-1:0, 0:0, 1:0}
-            for processData in data:
-                for game in processData:
-                    positions, result = game
-                    gameCounter[result] += 1
-                    for position in positions[-2:]:
-                        f.write(position + "\n")
-                        f.write(json.dumps(result) + "\n")
-            print(gameCounter)
+        games = []
+        map(games.extend, data) #flattens the data list
+        (gameCounter, posCounter) = gameStats(games)
+        print(f"results: {gameCounter}")
+        print(f"number of positions: {posCounter}")
+        storeGames(games, cfg.play.store_path)
 
 def playGames(cfg:DictConfig, game_viewer):
-    player1 = MCTS_PVBot.getMCTSBot(cfg, color=1, network=None, randomMove=True)
-    player2 = MCTS_PVBot.getMCTSBot(cfg, color=2, network=None, randomMove=False)
+    player1 = getPlayer(cfg.player1, cfg, 1)
+    player2 = getPlayer(cfg.player2, cfg, 2)
     #player1 = RandomBot(1, search_winning=True, search_losing=True)
 
     gameCounter = {-1:0, 0:0, 1:0}
@@ -153,17 +167,19 @@ def generateTrainLoop(cfg: DictConfig, game_viewer):
         playGames(cfg, game_viewer)
         PVbot_util.training(cfg, model_path, next_model_path)
 
-def doWork(cfg: DictConfig, game_viewer):
+def doWork(cfg: DictConfig, game_viewer, gvQueue):
     print(os.getcwd())
+    generateGames(cfg, gvQueue)
     #PVbot_util.training(cfg)
-    playGames(cfg, game_viewer)
+    #playGames(cfg, game_viewer)
     #generateTrainLoop(cfg, game_viewer)
     profiler.printStats()
 
-@hydra.main(config_path="conf", config_name="PVconfig")
+@hydra.main(config_path="conf", config_name="PVconfig", version_base="1.1")
 def main(cfg: DictConfig):
+    pprint(cfg.network_conf.board_size)
     gv = gameviewer.GameViewer()
-    gv.start(lambda: doWork(cfg, gv))
+    gv.start(lambda gvQueue: doWork(cfg, gv, gvQueue))
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,10 @@
 from tkinter import *
-import time
 import math
 import sys
 import threading
-import queue
+import copy
+
+import multiprocessing
 
 sys.path.append('.')
 import board
@@ -32,26 +33,32 @@ class GameCanvas(Canvas):
         self.pack()
 
 class GameViewer():
-    q = queue.Queue()
+    q = multiprocessing.Manager().Queue()
 
     def __init__(self):
         self.root = Tk()
-        self.canvas = GameCanvas(self.root, height=450, width=650)
+        self.windows = {}
+        self.windows[0] = GameCanvas(self.root, height=450, width=650)
 
     def start(self, target):
-        threading.Thread(target=target).start()
+        threading.Thread(target=target, args=(self.q, )).start()
         self.root.after(100, lambda: self.redraw_if_needed())
         self.root.mainloop()
 
     def redraw_if_needed(self):
-        while self.q.qsize() > 1:
-            self.q.get()
-        if not self.q.empty():
-            self.canvas.drawBoard(self.q.get())
+        while not self.q.empty():
+            (window, board) = self.q.get()
+            if window not in self.windows:
+                tl = Toplevel(self.root)
+                self.windows[window] = GameCanvas(tl, height=450, width=650)
+                self.windows[window].pack()
+            self.windows[window].drawBoard(board)
         self.root.after(100, lambda: self.redraw_if_needed())
 
-    def drawBoard(self, board):
-        self.q.put(board)
+    def drawBoard(self, window: int, board):
+        print("draw board called:")
+        print(board)
+        self.q.put((window, copy.deepcopy(board)))
 
 """
 b = board.Board(10, True)

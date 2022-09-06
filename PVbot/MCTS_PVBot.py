@@ -15,9 +15,9 @@ from timing import profiler
 
 CPU_DEVICE = torch.device("cpu")
 
-def getMCTSBot(cfg: DictConfig, color, network=None, randomMove=False):
+def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomMove=False):
     print(cfg)
-    bot = MCTSPolicyValueBot(**cfg.mcts_bot, cfg = cfg, network=network, myColor=color, randomMove=randomMove) #MCTSPolicyValueBot(2, network)
+    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg = cfg, network=network, myColor=color, randomMove=randomMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
     return bot
 
 class MCTSPolicyValueBot:
@@ -29,8 +29,8 @@ class MCTSPolicyValueBot:
         self.myColor = myColor
         self.randomMove = randomMove
         self.otherColor = 3-myColor
-        self.device = torch.device("cuda")
-        #self.device = torch.device("cpu")
+        #self.device = torch.device("cuda")
+        self.device = torch.device("cpu")
         self.network = network
         if not network:
             if not model_path:
