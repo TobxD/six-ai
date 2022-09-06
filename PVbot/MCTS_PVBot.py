@@ -25,17 +25,13 @@ class MCTSPolicyValueBot:
     otherColor = 2
     numIterations: int
 
-    def __init__(self, myColor, cfg = None, randomMove = False, network = None, model_path = None, numIterations = 200, c_puct = 1):
+    def __init__(self, myColor, model_path, cfg = None, randomMove = False, network = None, numIterations = 200, c_puct = 1):
         self.myColor = myColor
         self.randomMove = randomMove
         self.otherColor = 3-myColor
         #self.device = torch.device("cuda")
         self.device = torch.device("cpu")
-        self.network = network
-        if not network:
-            if not model_path:
-                model_path = "models/latest.ckpt"
-            self.network = PVnet.getModel(cfg, new=False, path=to_absolute_path(model_path))
+        self.network = PVnet.getModel(cfg, model_path)
         self.network.to(self.device)
         self.network.eval()
         ### TODO: torch.no_grad()

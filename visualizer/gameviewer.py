@@ -60,6 +60,9 @@ class GameViewer():
         print(board)
         self.q.put((window, copy.deepcopy(board)))
 
+    def quit(self):
+        return self.root.destroy()
+
 """
 b = board.Board(10, True)
 gv = GameViewer()

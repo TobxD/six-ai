@@ -1,5 +1,5 @@
 player_type: "mcts_nn"
-model_path: "models/gen2.1.ckpt"
+model_path: "/models/gen2.1.ckpt"
 numIterations: 200
 c_puct: 10
 randomMove: True

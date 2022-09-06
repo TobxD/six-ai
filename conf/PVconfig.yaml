@@ -1,12 +1,41 @@
+# Note: if paths start with '/', they are taken relative to the directory of main.py, otherwise it is relative to the hydra working directory
+
 defaults:
   - _self_
   - player1: mcts_nn
   - player2: mcts_nn
 
+general:
+  board_size: 10
+  mode: "play"
+  #mode: "train"
+  #mode: "iterate"
+
+network_conf:
+  board_size: ${general.board_size}
+  in_channels: 2
+  residual_channels: 32
+  residual_layers: 8
+
+#### PLAY ####
+play:
+  workers: 10
+  num_games: 20
+  store_path: "/data/testxy.json"
+  #store_path: null
+  game_viewer: True
+  random_color: False
+  #store_path: "/data/games_gen2.1.json"
+
+#### TRAINING ####
+general_train:
+  input_model_path: "/models/gen2.1.ckpt"
+  output_model_path: "/models/gen2.1.ckpt"
+
 data:
-  train_data_path: "data/games-0.json"
-  val_data_dir: data/val
-  test_data_dir: data/test
+  train_data_path: "/data/games-0.json"
+  val_data_dir: "/data/val"
+  test_data_dir: "/data/test"
   train_dataloader_conf:
     batch_size: 128
     num_workers: 0
@@ -17,26 +46,6 @@ data:
 #    batch_size: 512
 #    num_workers: 4
 
-play:
-  workers: 10
-  num_games: 1
-  store_path: "data/policy_data.json"
-  #store_path: null
-  game_viewer: True
-  random_color: False
-  #store_path: "data/games_gen2.1.json"
-
-general:
-  board_size: 10
-
-network_conf:
-  #model_path: "models/gen2.1.ckpt"
-  board_size: ${general.board_size}
-  in_channels: 2
-  residual_channels: 32
-  residual_layers: 8
-
-#### TRAINING ####
 train:
   run_test: false
   optimizer:
@@ -52,15 +61,8 @@ pl_trainer:
   gpus: 0
   auto_lr_find: false
 
-
-#### PLAY ####
-#mcts_bot:
-#  model_path: "models/gen2.1.ckpt"
-#  numIterations: 200
-#  c_puct: 10
-
-bot_test:
-  num_games: 2 #1000
-  break_on_loose: False
-  store_games: True
-  store_path: "data/games_gen2.1.json"
+#### ITERATION ####
+iterate:
+# TODO: use
+  games_per_iteration: 1000
+  model_start_path: null

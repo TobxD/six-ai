@@ -1,4 +1,5 @@
 import logging
+import util
 from pathlib import Path
 import random
 import numpy as np
@@ -313,10 +314,10 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
             #"monitor": "val_loss",
         }
 
-def getModel(cfg, new = True, path = None):
-    if new:
-        return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
-    else:
-        if path == None:
-            path = to_absolute_path("models/latest.ckpt")
-        return PVnet.load_from_checkpoint(path, s=SIZE, train_conf=cfg.train, network_conf=cfg.network_conf)
+def getModel(cfg, path):
+    #    return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
+    if path == None:
+        print("path empty when getting model")
+        exit(0)
+        #path = util.toPath("/models/latest.ckpt")
+    return PVnet.load_from_checkpoint(util.toPath(path), s=SIZE, train_conf=cfg.train, network_conf=cfg.network_conf)
