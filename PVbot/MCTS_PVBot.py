@@ -1,6 +1,7 @@
 from collections import defaultdict
 import sys, random
 import math
+from xmlrpc.client import Boolean
 import PVbot.PVnet as PVnet
 import PVbot.PVData as PVData
 
@@ -16,16 +17,16 @@ from timing import profiler
 CPU_DEVICE = torch.device("cpu")
 
 def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomMove=False):
-    print(cfg)
-    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg = cfg, network=network, myColor=color, randomMove=randomMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
+    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomMove=randomMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
     return bot
 
 class MCTSPolicyValueBot:
     myColor = 1
     otherColor = 2
     numIterations: int
+    logPV: bool
 
-    def __init__(self, myColor, model_path, cfg = None, randomMove = False, network = None, numIterations = 200, c_puct = 1):
+    def __init__(self, myColor, model_path, cfg, randomMove = False, network = None, numIterations = 200, c_puct = 1):
         self.myColor = myColor
         self.randomMove = randomMove
         self.otherColor = 3-myColor
@@ -37,6 +38,7 @@ class MCTSPolicyValueBot:
         ### TODO: torch.no_grad()
         self.numIterations = numIterations
         self.c_puct = c_puct
+        self.logPV = cfg.play.log_pv
 
     def getPV(self, s: Board):
         with profiler.getProfiler("getPV"):
@@ -153,7 +155,8 @@ class MCTSPolicyValueBot:
             ### Best move according to N
             bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
 
-        self.printMCTS(board, self.N[hash(board)], self.Q[hash(board)], self.P[hash(board)], bestMove)
+        if self.logPV:
+            self.printMCTS(board, self.N[hash(board)], self.Q[hash(board)], self.P[hash(board)], bestMove)
         return bestMove, policy
 
    

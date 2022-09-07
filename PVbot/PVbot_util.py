@@ -18,7 +18,7 @@ def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig, save_pat
     trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
     trainer.save_checkpoint(util.toPath("/models/net_{date}.ckpt".format(date=datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))))
     trainer.save_checkpoint(util.toPath("/models/latest.ckpt"))
-    trainer.save_checkpoint(util.toPath("/models/model.ckpt"))
+    trainer.save_checkpoint(util.toPath("models/model.ckpt"))
     trainer.save_checkpoint(util.toPath(save_path))
 
 def readDataWithPolicy(filename):

@@ -15,7 +15,6 @@ from timeit import default_timer as timer
 import hydra
 from omegaconf.dictconfig import DictConfig
 from omegaconf import open_dict
-from hydra.utils import to_absolute_path
 
 from timing import profiler
 import os
@@ -53,6 +52,8 @@ def simulate(board, player1, player2, gvQ=None, drawInd = None, startPlayer = 1)
 def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
     if player_cfg.player_type == "mcts_nn":
         return MCTS_PVBot.getMCTSBot(player_cfg, cfg=cfg, color=color, network=None, randomMove=player_cfg.randomMove)
+    elif player_cfg.player_type == "random":
+        return RandomBot(color, player_cfg.search_winning, player_cfg.search_losing)
     else:
         exit(1)
 
@@ -70,6 +71,7 @@ def collectGames(cfg, count: int, q, drawInd):
     data = []
     for i in range(count):
         data.append(playGame(cfg, cfg.play.random_color, q, drawInd))
+        print(f"done {i+1}/{count}")
 
     return data
 
@@ -120,13 +122,12 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
             model_path = f"model-{i}.ckpt"
         game_path = f"games-{i}.json"
         next_model_path = f"model-{i+1}.ckpt"
-        with open_dict(cfg):
-            cfg.player1.model_path = model_path
-            cfg.player2.model_path = model_path
-            cfg.play.store_path = game_path
-            cfg.data.train_data_path = game_path
-            cfg.general_train.input_model = model_path
-            cfg.general_train.output_model = next_model_path
+        cfg.player1.model_path = model_path
+        cfg.player2.model_path = model_path
+        cfg.play.store_path = game_path
+        cfg.data.train_data_path = game_path
+        cfg.general_train.input_model_path = model_path
+        cfg.general_train.output_model_path = next_model_path
         generateGames(cfg, gv_queue)
         PVbot_util.training(cfg)
 
@@ -137,7 +138,7 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
     elif cfg.general.mode == "train":
         PVbot_util.training(cfg)
     elif cfg.general.mode == "iterate":
-        generateTrainLoop(cfg, game_viewer)
+        generateTrainLoop(cfg, gv_queue)
     else:
         print(f"invalid mode \"{cfg.general.mode}\"selected")
     profiler.printStats()

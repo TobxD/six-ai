@@ -4,12 +4,8 @@ defaults:
   - _self_
   - player1: mcts_nn
   - player2: mcts_nn
-
-general:
-  board_size: 10
-  mode: "play"
-  #mode: "train"
-  #mode: "iterate"
+  #- player2: random_search_winning
+  - network_conf: small
 
 network_conf:
   board_size: ${general.board_size}
@@ -17,25 +13,34 @@ network_conf:
   residual_channels: 32
   residual_layers: 8
 
+general:
+  board_size: 10
+  #mode: "play"
+  #mode: "train"
+  mode: "iterate"
+
 #### PLAY ####
 play:
   workers: 10
-  num_games: 20
-  store_path: "/data/testxy.json"
-  #store_path: null
+  num_games: 10
+  #store_path: "/data/small-100.json"
+  store_path: null
   game_viewer: True
   random_color: False
   #store_path: "/data/games_gen2.1.json"
+  log_pv: False
 
 #### TRAINING ####
 general_train:
-  input_model_path: "/models/gen2.1.ckpt"
-  output_model_path: "/models/gen2.1.ckpt"
+  input_model_path: "/models/small_test.ckpt"
+  #input_model_path: null
+  output_model_path: "/models/small_test2.ckpt"
 
 data:
-  train_data_path: "/data/games-0.json"
-  val_data_dir: "/data/val"
-  test_data_dir: "/data/test"
+  #train_data_path: "/data/small-100.json"
+  train_data_path: "games.json"
+  #val_data_dir: "/data/val"
+  #test_data_dir: "/data/test"
   train_dataloader_conf:
     batch_size: 128
     num_workers: 0
@@ -55,14 +60,11 @@ train:
     weight_decay: 0.0001
 
 pl_trainer:
-  weights_summary: top
-  max_epochs: 100
+  max_epochs: 30
   #progress_bar_refresh_rate: 25
   gpus: 0
   auto_lr_find: false
 
 #### ITERATION ####
 iterate:
-# TODO: use
-  games_per_iteration: 1000
-  model_start_path: null
+  model_start_path: "/models/small_test2.ckpt"

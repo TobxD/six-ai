@@ -315,9 +315,7 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
         }
 
 def getModel(cfg, path):
-    #    return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
     if path == None:
         print("path empty when getting model")
-        exit(0)
-        #path = util.toPath("/models/latest.ckpt")
+        return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
     return PVnet.load_from_checkpoint(util.toPath(path), s=SIZE, train_conf=cfg.train, network_conf=cfg.network_conf)

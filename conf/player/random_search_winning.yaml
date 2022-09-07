@@ -1,0 +1,3 @@
+player_type: "random"
+search_winning: True
+search_losing: False
