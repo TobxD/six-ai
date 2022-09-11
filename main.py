@@ -144,7 +144,22 @@ def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue):
     win_cnt = stats1[-1] + stats2[1] + 0.5 * (stats1[0] + stats2[0])
     return win_cnt/(2 * cnt_per_color)
 
+def addFile(file_list, new_file, max_number_positions):
+    cnt = 0
+    file_list.append(new_file)
+    ret_list = []
+    for i in range(len(file_list)-1, -1, -1):
+        ret_list = [file_list[i]] + ret_list
+        with open(util.toPath(file_list[i])) as f:
+            cnt += len(f.readlines())/2
+        if cnt > max_number_positions:
+            break
+    return ret_list
+
 def generateTrainLoop(cfg: DictConfig, gv_queue):
+    game_data_files = []
+    for path in cfg.iterate.game_data_files:
+        game_data_files = addFile(game_data_files, path, cfg.iterate.num_past_train_positions)
     model_path = cfg.iterate.model_start_path
     for i in range(cfg.iterate.num_iterations):
         game_path = f"games-{i}.json"
@@ -152,10 +167,12 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
         cfg.player1.model_path = model_path
         cfg.player2.model_path = model_path
         cfg.play.store_path = game_path
-        cfg.data.train_data_path = game_path
         cfg.general_train.input_model_path = model_path
         cfg.general_train.output_model_path = next_model_path
         generateGames(cfg, gv_queue)
+        game_data_files = addFile(game_data_files, game_path, cfg.iterate.num_past_train_positions)
+        cfg.data.train_data_path = game_data_files
+        print("training on", game_data_files)
         PVbot_util.training(cfg)
         winning_perc = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
         print(f"new generation {i} won with frequency {winning_perc}")
@@ -164,9 +181,8 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
             model_path = next_model_path
         else:
             print(f"keeping old model {model_path}")
-            # reuse games from this iteration as model does not change
-            # this results in more train data and hopefully a better model in the next iteration
-            shutil.copyfile(util.toPath(game_path), util.toPath(f"games-{i+1}.json"))
+            print(f"deleting new model {next_model_path}")
+            os.remove(util.toPath(next_model_path))
 
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
     #print(evalModel(cfg, "/models/small_test.ckpt", "/models/small_test2.ckpt", 50, gv_queue))

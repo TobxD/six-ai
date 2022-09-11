@@ -33,10 +33,12 @@ def readDataWithPolicy(filename):
             data.append((PVData.prepareInput(board, toMove), PVData.prepareOutput(y_policy, float(result) if toMove == 2 else float(-result))))
     return data
 
-def getDataloader(datapath):
-    data = readDataWithPolicy(datapath)
-    dataloader = PVData.PVData(data, batch_size=1024)
-    dataloader.prepare_data()
+def getDataloader(data_cfg):
+    if type(data_cfg.train_data_path) == str:
+        data_cfg.train_data_path = [data_cfg.train_data_path]
+    data = [position for path in data_cfg.train_data_path for position in readDataWithPolicy(path)]
+    dataloader = PVData.PVData(data)
+    dataloader.prepare_data(data_cfg.train_val_split)
     return dataloader
 
 def training(cfg: DictConfig):
@@ -51,5 +53,5 @@ def training(cfg: DictConfig):
 
     #seed_everything(42, workers=True)
     #testNet(network)
-    trainModel(network, trainer, getDataloader(cfg.data.train_data_path), cfg.data.train_dataloader_conf, cfg.general_train.output_model_path)
+    trainModel(network, trainer, getDataloader(cfg.data), cfg.data.train_dataloader_conf, cfg.general_train.output_model_path)
     #testNet(network)

@@ -10,17 +10,17 @@ defaults:
 
 general:
   board_size: 10
-  mode: "play"
+  #mode: "play"
   #mode: "train"
-  #mode: "iterate"
+  mode: "iterate"
 
 #### PLAY ####
 play:
   workers: 10
   num_games: 500
   #store_path: "/data/small-100.json"
-  store_path: "/data/fast-games-3.json"
-  #store_path: null
+  #store_path: "/data/fast-games-4.json"
+  store_path: null
   game_viewer: False
   random_color: False
   #store_path: "/data/games_gen2.1.json"
@@ -28,15 +28,16 @@ play:
 
 #### TRAINING ####
 general_train:
-  input_model_path: "/models/small_test3.ckpt"
+  input_model_path: "/models/small_test4.ckpt"
   #input_model_path: null
-  output_model_path: "/models/small_test4.ckpt"
+  output_model_path: "/models/latest.ckpt"
 
 data:
   #train_data_path: "/data/small-100.json"
-  train_data_path: "/data/fast-games-3.json"
+  train_data_path: ["/data/fast-games-3.json", "/data/fast-games-3.json", "/data/fast-games-4.json"]
+  train_val_split: 0.9
   train_dataloader_conf:
-    batch_size: 128
+    batch_size: 512
     num_workers: 5
 
 train:
@@ -55,9 +56,15 @@ pl_trainer:
 
 #### ITERATION ####
 iterate:
-  model_start_path: null
+  model_start_path: "/models/small_test4.ckpt"
   num_iterations: 100
-  # number of games to play against last model
+  # number of games to play against last model with each color (total number is twice that)
   num_evaluation_games: 20
   # percentage that has to be won at least to continue with model
   winning_threshold: 0.6
+  # list of previously generated data that can be used for training
+  game_data_files: ["/data/fast-games-2.json", "/data/fast-games-3.json", "/data/fast-games-4.json"]
+  # number of positions that are at least used for training (if available)
+  # We only use whole files and take the smallest number of past files such
+  # we have at least this number of positions to train on
+  num_past_train_positions: 50000

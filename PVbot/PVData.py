@@ -17,23 +17,20 @@ def prepareOutput (y_policy, result, size=10):
     return (policy, result)
 
 class PVData(LightningDataModule):
-    def __init__(self, games, batch_size=4):
+    def __init__(self, games):
         super().__init__()
         self.games = games
-        self.batch_size = batch_size
 
-    def prepare_data(self):
+    def prepare_data(self, train_val_split):
         tensor_data = [(torch.FloatTensor(x), torch.FloatTensor(y[0]), torch.FloatTensor([y[1]])) for (x,y) in self.games]
-        train_cnt = min(int(0.8*len(tensor_data))+1, len(tensor_data)-1)
+        train_cnt = min(int(train_val_split*len(tensor_data))+1, len(tensor_data)-1)
         # don't shuffle, otherwise validation data familiar to net; here done for illustration purposes
         #random.shuffle(tensor_data)
         self.train_data = tensor_data[:train_cnt]
         self.val_data = tensor_data[train_cnt:]
-        print(len(self.train_data), len(self.val_data))
+        print(f"train/val data samples: {len(self.train_data)}/{len(self.val_data)}")
         random.shuffle(self.train_data)
         random.shuffle(self.val_data)
-        #self.train_data = self.train_data[:256]
-        #self.val_data = self.val_data[:256]
 
     def train_dataloader(self, dataloader_conf: DictConfig):
         return DataLoader(self.train_data, shuffle=True, **dataloader_conf)
