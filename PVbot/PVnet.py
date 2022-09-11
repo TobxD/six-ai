@@ -302,12 +302,13 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
     def configure_optimizers(self):
         # taken from leela zero
         # https://github.com/leela-zero/leela-zero/blob/db5569ce8d202f77154f288c21d3f2fa228f9aa3/training/tf/tfprocess.py#L190-L191
-        sgd_opt = torch.optim.SGD(
-            self.parameters(),
-            **self.train_conf.optimizer
-        )
+        opt = torch.optim.Adam(self.parameters(), lr=self.train_conf.optimizer.lr, weight_decay=self.train_conf.optimizer.weight_decay)
+        #sgd_opt = torch.optim.SGD(
+        #    self.parameters(),
+        #    **self.train_conf.optimizer
+        #)
         return {
-            "optimizer": sgd_opt,
+            "optimizer": opt,
             #"lr_scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
             #    sgd_opt, verbose=True, min_lr=5e-6
             #),

@@ -28,8 +28,6 @@ def readDataWithPolicy(filename):
         print(f"Lines in data file: {len(lines)}")
         lines = [line[:-1] for line in lines]
         for i in range(0, len(lines), 2):
-            #print(i)
-            #print(lines[i])
             board, toMove, y_policy = json.loads(lines[i])
             result = int(lines[i+1])
             data.append((PVData.prepareInput(board, toMove), PVData.prepareOutput(y_policy, float(result) if toMove == 2 else float(-result))))
@@ -42,9 +40,9 @@ def getDataloader(datapath):
     return dataloader
 
 def training(cfg: DictConfig):
-    print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
+    #print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
     network = PVnet.getModel(cfg, cfg.general_train.input_model_path)
-    print(network)
+    #print(network)
 
     #trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
     trainer_logger = TensorBoardLogger(util.toPath("/lightning_logs"))

@@ -1,9 +1,11 @@
 from collections import defaultdict
 import sys, random
+import numpy as np
 import math
 from xmlrpc.client import Boolean
 import PVbot.PVnet as PVnet
 import PVbot.PVData as PVData
+
 
 sys.path.append('.')
 
@@ -82,6 +84,15 @@ class MCTSPolicyValueBot:
         if hash(s) not in self.visited:
             self.visited.add(hash(s))
             self.P[hash(s)], v = self.getPV(s)
+            # Adding Dirichlet noise
+            children = self.P[hash(s)].keys()
+            alpha = 1/3 # pick value of Chess from AlphaGO Zero paper as we have similar number of moves
+            epsilon = 0.25
+            dirichlet = np.random.dirichlet([alpha for i in range(len(children))])
+            ind = 0
+            for child in children:
+                self.P[hash(s)][child] = (1-epsilon) * self.P[hash(s)][child] + epsilon * dirichlet[ind]
+                ind += 1
             return -float(v)
     
         max_u, best_a = -float("inf"), -1

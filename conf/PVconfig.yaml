@@ -2,69 +2,62 @@
 
 defaults:
   - _self_
-  - player1: mcts_nn
-  - player2: mcts_nn
+  - player1: mcts_nn2
+  - player2: mcts_nn2
   #- player2: random_search_winning
+  #- player2: random_nolook
   - network_conf: small
-
-network_conf:
-  board_size: ${general.board_size}
-  in_channels: 2
-  residual_channels: 32
-  residual_layers: 8
 
 general:
   board_size: 10
-  #mode: "play"
+  mode: "play"
   #mode: "train"
-  mode: "iterate"
+  #mode: "iterate"
 
 #### PLAY ####
 play:
   workers: 10
-  num_games: 10
+  num_games: 500
   #store_path: "/data/small-100.json"
-  store_path: null
-  game_viewer: True
+  store_path: "/data/fast-games-3.json"
+  #store_path: null
+  game_viewer: False
   random_color: False
   #store_path: "/data/games_gen2.1.json"
   log_pv: False
 
 #### TRAINING ####
 general_train:
-  input_model_path: "/models/small_test.ckpt"
+  input_model_path: "/models/small_test3.ckpt"
   #input_model_path: null
-  output_model_path: "/models/small_test2.ckpt"
+  output_model_path: "/models/small_test4.ckpt"
 
 data:
   #train_data_path: "/data/small-100.json"
-  train_data_path: "games.json"
-  #val_data_dir: "/data/val"
-  #test_data_dir: "/data/test"
+  train_data_path: "/data/fast-games-3.json"
   train_dataloader_conf:
     batch_size: 128
-    num_workers: 0
-#  val_dataloader_conf:
-#    batch_size: 512
-#    num_workers: 4
-#  test_dataloader_conf:
-#    batch_size: 512
-#    num_workers: 4
+    num_workers: 5
 
 train:
   run_test: false
   optimizer:
-    lr: 0.005
+    lr: 0.001
     momentum: 0.9
     nesterov: True
     weight_decay: 0.0001
 
 pl_trainer:
-  max_epochs: 30
+  max_epochs: 20
   #progress_bar_refresh_rate: 25
   gpus: 0
   auto_lr_find: false
 
 #### ITERATION ####
 iterate:
-  model_start_path: "/models/small_test2.ckpt"
+  model_start_path: null
+  num_iterations: 100
+  # number of games to play against last model
+  num_evaluation_games: 20
+  # percentage that has to be won at least to continue with model
+  winning_threshold: 0.6

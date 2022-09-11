@@ -1,4 +1,6 @@
 from pprint import pprint
+import queue
+import shutil
 from board import Board, SIZE
 import util
 from randomBot import RandomBot
@@ -23,14 +25,14 @@ posCnt = {-1:0, 0:0, 1:0}
 gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
-def simulate(board, player1, player2, gvQ=None, drawInd = None, startPlayer = 1):
+def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer = 1):
     moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
     positions = []
     while True:
-        if gvQ:
-            gvQ.put((drawInd, board))
+        if gv_queue:
+            gv_queue.put((drawInd, board))
         winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
@@ -47,6 +49,7 @@ def simulate(board, player1, player2, gvQ=None, drawInd = None, startPlayer = 1)
     posCnt[result] += moveNum
     gameCnt[result] += 1
 
+    # -1 means first player wins, 1 means second player wins
     return (positions, result)
 
 def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
@@ -57,7 +60,7 @@ def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
     else:
         exit(1)
 
-def playGame(cfg, randomColor, q, drawInd):
+def playGame(cfg, randomColor, gv_queue, drawInd):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
         player1 = getPlayer(cfg.player1, cfg, 1)
@@ -65,14 +68,18 @@ def playGame(cfg, randomColor, q, drawInd):
     else:
         player1 = getPlayer(cfg.player2, cfg, 2)
         player2 = getPlayer(cfg.player1, cfg, 1)
-    return simulate(board, player1, player2, q, drawInd)
+    return simulate(board, player1, player2, gv_queue, drawInd)
 
-def collectGames(cfg, count: int, q, drawInd):
+def collectGames(cfg, game_in_queue, game_num_queue, gv_queue, drawInd):
     data = []
-    for i in range(count):
-        data.append(playGame(cfg, cfg.play.random_color, q, drawInd))
-        print(f"done {i+1}/{count}")
-
+    try:
+        while True:
+            game_in_queue.get(timeout=1)
+            data.append(playGame(cfg, cfg.play.random_color, gv_queue, drawInd))
+            game_num = game_num_queue.get()
+            print(f"done with game {game_num}")
+    except queue.Empty:
+        pass
     return data
 
 def storeGames(games, path):
@@ -97,12 +104,17 @@ def gameStats(games):
 
 def generateGames(cfg, gv_queue):
     workers = min(cfg.play.workers, cfg.play.num_games)
-    cfg.play.num_games -= cfg.play.num_games % workers
     print(f"Executing {cfg.play.num_games} games on {workers} of your {mp.cpu_count()} CPUs")
 
     start = timer()
     with mp.Pool(processes=workers) as pool:
-        args = [(cfg, cfg.play.num_games//workers, gv_queue, i) for i in range(workers)]
+        gameQueue = mp.Manager().Queue()
+        gameNumQueue = mp.Manager().Queue()
+        for i in range(cfg.play.num_games):
+            gameQueue.put(i)
+            gameNumQueue.put(i+1)
+
+        args = [(cfg, gameQueue, gameNumQueue, gv_queue, i) for i in range(workers)]
         data = pool.starmap(collectGames, args)
         end = timer()
         print(f'elapsed time: {end - start} s')
@@ -113,13 +125,28 @@ def generateGames(cfg, gv_queue):
         print(f"results: {gameCounter}")
         print(f"number of positions: {posCounter}")
         storeGames(games, cfg.play.store_path)
+        return gameCounter
+
+# returns fraction won by model 1
+def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue):
+    newCfg = copy.deepcopy(cfg)
+    newCfg.play.num_games = cnt_per_color
+    newCfg.play.store_path = None
+
+    newCfg.player1.model_path = model_path1
+    newCfg.player2.model_path = model_path2
+    stats1 = generateGames(newCfg, gv_queue)
+
+    newCfg.player1.model_path = model_path2
+    newCfg.player2.model_path = model_path1
+    stats2 = generateGames(newCfg, gv_queue)
+
+    win_cnt = stats1[-1] + stats2[1] + 0.5 * (stats1[0] + stats2[0])
+    return win_cnt/(2 * cnt_per_color)
 
 def generateTrainLoop(cfg: DictConfig, gv_queue):
-    for i in range(2):
-        if i == 0:
-            model_path = cfg.iterate.model_start_path
-        else:
-            model_path = f"model-{i}.ckpt"
+    model_path = cfg.iterate.model_start_path
+    for i in range(cfg.iterate.num_iterations):
         game_path = f"games-{i}.json"
         next_model_path = f"model-{i+1}.ckpt"
         cfg.player1.model_path = model_path
@@ -130,8 +157,20 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
         cfg.general_train.output_model_path = next_model_path
         generateGames(cfg, gv_queue)
         PVbot_util.training(cfg)
+        winning_perc = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
+        print(f"new generation {i} won with frequency {winning_perc}")
+        if winning_perc >= cfg.iterate.winning_threshold:
+            print(f"continuing with new model {next_model_path}")
+            model_path = next_model_path
+        else:
+            print(f"keeping old model {model_path}")
+            # reuse games from this iteration as model does not change
+            # this results in more train data and hopefully a better model in the next iteration
+            shutil.copyfile(util.toPath(game_path), util.toPath(f"games-{i+1}.json"))
 
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
+    #print(evalModel(cfg, "/models/small_test.ckpt", "/models/small_test2.ckpt", 50, gv_queue))
+    #return
     print(os.getcwd())
     if cfg.general.mode == "play":
         generateGames(cfg, gv_queue)
