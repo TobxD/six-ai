@@ -118,7 +118,6 @@ class Network(nn.Module):
             ]
         )
         self.policy_conv = ConvBlock(residual_channels, 2, 1)
-        # self.policy_fc = nn.Linear(2 * board_size * board_size, board_size * board_size + 1)
         self.policy_fc = nn.Linear(2 * board_size * board_size, board_size * board_size)
         self.value_conv = ConvBlock(residual_channels, 1, 1)
         self.value_fc_1 = nn.Linear(board_size * board_size, 256)

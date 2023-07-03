@@ -8,7 +8,7 @@ import random
 def prepareInput(board, toMove):
     ownBoard = [[float(x==toMove) for x in line] for line in board]
     otherBoard = [[float(x==3-toMove) for x in line] for line in board]
-    return [ownBoard, otherBoard]
+    return [torch.FloatTensor(ownBoard), torch.FloatTensor(otherBoard)]
 
 def prepareOutput (y_policy, result, size=10):
     policy = torch.zeros(size*size)
@@ -22,7 +22,7 @@ class PVData(LightningDataModule):
         self.games = games
 
     def prepare_data(self, train_val_split):
-        tensor_data = [(torch.FloatTensor(x), torch.FloatTensor(y[0]), torch.FloatTensor([y[1]])) for (x,y) in self.games]
+        tensor_data = [(torch.stack(x, dim=0), torch.FloatTensor(y[0]), torch.FloatTensor([y[1]])) for (x,y) in self.games]
         train_cnt = min(int(train_val_split*len(tensor_data))+1, len(tensor_data)-1)
         # don't shuffle, otherwise validation data familiar to net; here done for illustration purposes
         #random.shuffle(tensor_data)
@@ -36,4 +36,4 @@ class PVData(LightningDataModule):
         return DataLoader(self.train_data, shuffle=True, **dataloader_conf)
 
     def val_dataloader(self, dataloader_conf: DictConfig):
-        return DataLoader(self.val_data, shuffle=True, **dataloader_conf)
+        return DataLoader(self.val_data, shuffle=False, **dataloader_conf)

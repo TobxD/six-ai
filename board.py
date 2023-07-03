@@ -35,14 +35,17 @@ class Board:
             mid = (size-1)//2
             self.board[mid][mid] = 1
             self.board[mid][mid+1] = 2
-        self.hashMatrix = numpy.random.randint(low=0,high=2**31-1,size=(3,size,size)).tolist()
+        self.hashMatrix = numpy.random.randint(low=0,high=2**60-1,size=(3,size,size)).tolist()
         for y in range(self.size):
             for x in range(self.size):
                 self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
 
+    def numberOfMovesPlayed(self):
+        return len(self.moves)
+
     def move(self, y, x):
         if self.board[y][x] != 0:
-            print ("error!", y,x)
+            print ("board move error!", y,x)
             exit(1)
 
         self.moves.append((y,x))

@@ -7,34 +7,34 @@ defaults:
   #- player2: random_search_winning
   #- player2: random_nolook
   - network_conf: small
+  #- network_conf: huge
 
 general:
   board_size: 10
-  #mode: "play"
+  mode: "play"
   #mode: "train"
-  mode: "iterate"
+  #mode: "iterate"
 
 #### PLAY ####
 play:
-  workers: 10
-  num_games: 500
+  workers: 8
+  num_games: 1
   #store_path: "/data/small-100.json"
-  #store_path: "/data/fast-games-4.json"
+  #store_path: "/data/slow-games-1.json"
   store_path: null
-  game_viewer: False
+  game_viewer: false
   random_color: False
   #store_path: "/data/games_gen2.1.json"
-  log_pv: False
+  log_pv: True
 
 #### TRAINING ####
 general_train:
-  input_model_path: "/models/small_test4.ckpt"
-  #input_model_path: null
+  #input_model_path: "/models/small_test4.ckpt"
+  input_model_path: null
   output_model_path: "/models/latest.ckpt"
 
 data:
-  #train_data_path: "/data/small-100.json"
-  train_data_path: ["/data/fast-games-3.json", "/data/fast-games-3.json", "/data/fast-games-4.json"]
+  train_data_path: ["/data/slow-games-1.json", "/data/slow-iteration-games-0.json", "/data/slow-iteration-games-1.json", "/data/slow-iteration-games-2.json", "/data/slow-iteration-games-3.json", "/data/slow-iteration-games-4.json", "/data/slow-iteration-games-5.json"]
   train_val_split: 0.9
   train_dataloader_conf:
     batch_size: 512
@@ -46,24 +46,25 @@ train:
     lr: 0.001
     momentum: 0.9
     nesterov: True
-    weight_decay: 0.0001
+    weight_decay: 0.003
 
 pl_trainer:
-  max_epochs: 20
+  max_epochs: 10
   #progress_bar_refresh_rate: 25
-  gpus: 0
-  auto_lr_find: false
+  accelerator: "auto"
+  auto_lr_find: True
 
 #### ITERATION ####
 iterate:
-  model_start_path: "/models/small_test4.ckpt"
+  model_start_path: "/models/slow-iteration-model-6.ckpt"
+  #model_start_path: "/models/large_test1.ckpt"
   num_iterations: 100
   # number of games to play against last model with each color (total number is twice that)
   num_evaluation_games: 20
   # percentage that has to be won at least to continue with model
   winning_threshold: 0.6
   # list of previously generated data that can be used for training
-  game_data_files: ["/data/fast-games-2.json", "/data/fast-games-3.json", "/data/fast-games-4.json"]
+  game_data_files: ["/data/slow-games-1.json", "/data/slow-iteration-games-0.json", "/data/slow-iteration-games-1.json", "/data/slow-iteration-games-2.json", "/data/slow-iteration-games-3.json", "/data/slow-iteration-games-4.json", "/data/slow-iteration-games-5.json"]
   # number of positions that are at least used for training (if available)
   # We only use whole files and take the smallest number of past files such
   # we have at least this number of positions to train on

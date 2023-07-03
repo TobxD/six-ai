@@ -54,7 +54,7 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
 
 def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
     if player_cfg.player_type == "mcts_nn":
-        return MCTS_PVBot.getMCTSBot(player_cfg, cfg=cfg, color=color, network=None, randomMove=player_cfg.randomMove)
+        return MCTS_PVBot.getMCTSBot(player_cfg, cfg=cfg, color=color, network=None, randomUpToMove=player_cfg.randomUpToMove)
     elif player_cfg.player_type == "random":
         return RandomBot(color, player_cfg.search_winning, player_cfg.search_losing)
     else:
@@ -70,7 +70,7 @@ def playGame(cfg, randomColor, gv_queue, drawInd):
         player2 = getPlayer(cfg.player1, cfg, 1)
     return simulate(board, player1, player2, gv_queue, drawInd)
 
-def collectGames(cfg, game_in_queue, game_num_queue, gv_queue, drawInd):
+def collectGames(cfg, result_queue, game_in_queue, game_num_queue, gv_queue, drawInd):
     data = []
     try:
         while True:
@@ -80,7 +80,8 @@ def collectGames(cfg, game_in_queue, game_num_queue, gv_queue, drawInd):
             print(f"done with game {game_num}")
     except queue.Empty:
         pass
-    return data
+    for d in data:
+        result_queue.put(d)
 
 def storeGames(games, path):
     if path==None:
@@ -107,6 +108,7 @@ def generateGames(cfg, gv_queue):
     print(f"Executing {cfg.play.num_games} games on {workers} of your {mp.cpu_count()} CPUs")
 
     start = timer()
+    """
     with mp.Pool(processes=workers) as pool:
         gameQueue = mp.Manager().Queue()
         gameNumQueue = mp.Manager().Queue()
@@ -126,6 +128,31 @@ def generateGames(cfg, gv_queue):
         print(f"number of positions: {posCounter}")
         storeGames(games, cfg.play.store_path)
         return gameCounter
+    """
+    gameQueue = mp.Queue()
+    gameNumQueue = mp.Queue()
+    resultQueue = mp.Queue()
+    for i in range(cfg.play.num_games):
+        gameQueue.put(i)
+        gameNumQueue.put(i+1)
+
+    worker_processes = [mp.Process(target=collectGames, args=(cfg, resultQueue, gameQueue, gameNumQueue, gv_queue, i)) for i in range(workers)]
+    for w in worker_processes:
+        w.start()
+    games = []
+    for i in range(cfg.play.num_games):
+        games.append(resultQueue.get())
+    for w in worker_processes:
+        w.join()
+    end = timer()
+    print(f'elapsed time: {end - start} s')
+    print(f'per Game: {(end - start)/cfg.play.num_games} s')
+
+    (gameCounter, posCounter) = gameStats(games)
+    print(f"results: {gameCounter}")
+    print(f"number of positions: {posCounter}")
+    storeGames(games, cfg.play.store_path)
+    return gameCounter
 
 # returns fraction won by model 1
 def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue):
@@ -185,9 +212,7 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
             os.remove(util.toPath(next_model_path))
 
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
-    #print(evalModel(cfg, "/models/small_test.ckpt", "/models/small_test2.ckpt", 50, gv_queue))
-    #return
-    print(os.getcwd())
+    print(f"current wd: {os.getcwd()}")
     if cfg.general.mode == "play":
         generateGames(cfg, gv_queue)
     elif cfg.general.mode == "train":
@@ -200,7 +225,6 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
 
 @hydra.main(config_path="conf", config_name="PVconfig", version_base="1.1")
 def main(cfg: DictConfig):
-    print(util.toPath(cfg.play.store_path))
     if cfg.play.game_viewer:
         gv = gameviewer.GameViewer()
         gv.start(lambda gv_queue: doWork(cfg, gv, gv_queue))

@@ -18,8 +18,8 @@ from timing import profiler
 
 CPU_DEVICE = torch.device("cpu")
 
-def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomMove=False):
-    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomMove=randomMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
+def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomUpToMove=False):
+    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
     return bot
 
 class MCTSPolicyValueBot:
@@ -28,9 +28,9 @@ class MCTSPolicyValueBot:
     numIterations: int
     logPV: bool
 
-    def __init__(self, myColor, model_path, cfg, randomMove = False, network = None, numIterations = 200, c_puct = 1):
+    def __init__(self, myColor, model_path, cfg, randomUpToMove = 0, network = None, numIterations = 200, c_puct = 1):
         self.myColor = myColor
-        self.randomMove = randomMove
+        self.randomUpToMove = randomUpToMove
         self.otherColor = 3-myColor
         #self.device = torch.device("cuda")
         self.device = torch.device("cpu")
@@ -47,8 +47,7 @@ class MCTSPolicyValueBot:
             with profiler.getProfiler("prepare input data"):
                 inputData = PVData.prepareInput(s.board,s.toMove)
             with profiler.getProfiler("create input tensor"):
-                X = torch.FloatTensor(inputData).to(self.device).unsqueeze(0)
-                X = X.repeat(1, 1, 1, 1)
+                X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
             with profiler.getProfiler("eval network"):
                 policy, value = self.network(X)
             with profiler.getProfiler("moves avail"):
@@ -154,7 +153,7 @@ class MCTSPolicyValueBot:
         sumVal = sum(N.values())
         policy = {key:N[key]/sumVal for key in N}
 
-        if self.randomMove:
+        if board.numberOfMovesPlayed() < self.randomUpToMove:
             cutoff = random.random()
             bestMove = policy[list(policy.keys())[0]]
             for move in policy:
@@ -164,6 +163,7 @@ class MCTSPolicyValueBot:
                     break
         else:
             ### Best move according to N
+            # TODO: break ties randomly
             bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
 
         if self.logPV:

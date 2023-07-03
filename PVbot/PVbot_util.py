@@ -1,9 +1,12 @@
 import json
 import logging
+from pprint import pprint
 import util
 #sys.path.append('.')
 from datetime import datetime
 from pathlib import Path
+
+import torch
 
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
@@ -33,10 +36,36 @@ def readDataWithPolicy(filename):
             data.append((PVData.prepareInput(board, toMove), PVData.prepareOutput(y_policy, float(result) if toMove == 2 else float(-result))))
     return data
 
+# augment to include 4 symmetries
+def augmentData(positions):
+    def mirror1(array2d):
+        return torch.flip(array2d, dims=(0,1))
+    def mirror2(array2d):
+        return torch.transpose(array2d, 0, 1)
+
+    newData = []
+    def addPosition(pos, transforms):
+        ((own_board, other_board), (policy, res)) = pos
+        policy = policy.view((10, 10))
+        for transform in transforms:
+            own_board = transform(own_board)
+            other_board = transform(other_board)
+            policy = transform(policy)
+        policy = policy.reshape(-1)
+        newData.append(((own_board, other_board), (policy, res)))
+
+    for pos in positions:
+        addPosition(pos, [])
+        addPosition(pos, [mirror1])
+        addPosition(pos, [mirror2])
+        addPosition(pos, [mirror1, mirror2])
+    return newData
+
 def getDataloader(data_cfg):
     if type(data_cfg.train_data_path) == str:
         data_cfg.train_data_path = [data_cfg.train_data_path]
     data = [position for path in data_cfg.train_data_path for position in readDataWithPolicy(path)]
+    data = augmentData(data)
     dataloader = PVData.PVData(data)
     dataloader.prepare_data(data_cfg.train_val_split)
     return dataloader
