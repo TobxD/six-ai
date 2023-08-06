@@ -74,7 +74,8 @@ class MCTSPolicyValueBot:
         return P, value[0]
 
     def search(self, s: Board):
-        gameResult = s.gameResult()
+        with profiler.getProfiler("get game result"):
+            gameResult = s.gameResult()
         if gameResult != None:
             if s.toMove == 1:
                 gameResult *= -1
@@ -130,6 +131,7 @@ class MCTSPolicyValueBot:
         print (bestMove)
 
     def nextMove(self, board):
+        print("moving with mcts")
         self.N = defaultdict(lambda: defaultdict(lambda: 0))
         self.Q = defaultdict(lambda: defaultdict(lambda: 0))
         self.P = {}

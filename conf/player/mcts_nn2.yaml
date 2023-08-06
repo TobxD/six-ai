@@ -2,6 +2,6 @@ player_type: "mcts_nn"
 #model_path: "/models/gen1.0.ckpt"
 model_path: "/models/slow-iteration-model-6.ckpt"
 #model_path: null
-numIterations: 500
+numIterations: 50
 c_puct: 10
-randomUpToMove: 15
+randomUpToMove: 0

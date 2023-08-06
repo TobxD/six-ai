@@ -12,13 +12,13 @@ defaults:
 general:
   board_size: 10
   mode: "play"
-  #mode: "train"
+  # mode: "train"
   #mode: "iterate"
 
 #### PLAY ####
 play:
-  workers: 8
-  num_games: 1
+  workers: 100
+  num_games: 100
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null

@@ -49,6 +49,8 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
     posCnt[result] += moveNum
     gameCnt[result] += 1
 
+    profiler.printStats()
+
     # -1 means first player wins, 1 means second player wins
     return (positions, result)
 
@@ -225,6 +227,7 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
 
 @hydra.main(config_path="conf", config_name="PVconfig", version_base="1.1")
 def main(cfg: DictConfig):
+    print(cfg)
     if cfg.play.game_viewer:
         gv = gameviewer.GameViewer()
         gv.start(lambda gv_queue: doWork(cfg, gv, gv_queue))
