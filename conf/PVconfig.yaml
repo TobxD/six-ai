@@ -2,10 +2,12 @@
 
 defaults:
   - _self_
-  - player1: mcts_nn2
-  - player2: mcts_nn2
-  #- player2: random_search_winning
-  #- player2: random_nolook
+  # - player1: mcts_nn2
+  # - player2: mcts_nn2
+  # - player1: random_search_winning
+  # - player2: random_search_winning
+  - player1: random_nolook
+  - player2: random_nolook
   - network_conf: small
   #- network_conf: huge
 
@@ -17,8 +19,8 @@ general:
 
 #### PLAY ####
 play:
-  workers: 100
-  num_games: 100
+  workers: 1
+  num_games: 1000
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null
@@ -34,7 +36,16 @@ general_train:
   output_model_path: "/models/latest.ckpt"
 
 data:
-  train_data_path: ["/data/slow-games-1.json", "/data/slow-iteration-games-0.json", "/data/slow-iteration-games-1.json", "/data/slow-iteration-games-2.json", "/data/slow-iteration-games-3.json", "/data/slow-iteration-games-4.json", "/data/slow-iteration-games-5.json"]
+  train_data_path:
+    [
+      "/data/slow-games-1.json",
+      "/data/slow-iteration-games-0.json",
+      "/data/slow-iteration-games-1.json",
+      "/data/slow-iteration-games-2.json",
+      "/data/slow-iteration-games-3.json",
+      "/data/slow-iteration-games-4.json",
+      "/data/slow-iteration-games-5.json",
+    ]
   train_val_split: 0.9
   train_dataloader_conf:
     batch_size: 512
@@ -64,7 +75,16 @@ iterate:
   # percentage that has to be won at least to continue with model
   winning_threshold: 0.6
   # list of previously generated data that can be used for training
-  game_data_files: ["/data/slow-games-1.json", "/data/slow-iteration-games-0.json", "/data/slow-iteration-games-1.json", "/data/slow-iteration-games-2.json", "/data/slow-iteration-games-3.json", "/data/slow-iteration-games-4.json", "/data/slow-iteration-games-5.json"]
+  game_data_files:
+    [
+      "/data/slow-games-1.json",
+      "/data/slow-iteration-games-0.json",
+      "/data/slow-iteration-games-1.json",
+      "/data/slow-iteration-games-2.json",
+      "/data/slow-iteration-games-3.json",
+      "/data/slow-iteration-games-4.json",
+      "/data/slow-iteration-games-5.json",
+    ]
   # number of positions that are at least used for training (if available)
   # We only use whole files and take the smallest number of past files such
   # we have at least this number of positions to train on

@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 
 SIZE = 10
 
@@ -19,10 +19,12 @@ shapes = [
     [(-2,2), (-1, 1), (-1, 2), (0, 0), (0, 1), (0, 2)], # triangle 2
     [(0,0), (0, 1), (1, -1), (1, 1), (2, -1), (2, 0)], # circle
 ]
+shapes_numpy = np.array(shapes)
 
 class Board:
     size = 10
     board = [[0]*10 for i in range(10)]
+    stones = [np.zeros((10,10), dtype=bool) for i in range(2)]
     toMove = 1
     moves = []
     hashMatrix = []
@@ -31,14 +33,29 @@ class Board:
     def __init__(self, size, startPieces=False):
         self.size = size
         self.board = [[0]*size for i in range(size)]
+        self.stones = [np.zeros((size,size), dtype=bool) for i in range(2)]
         if startPieces:
             mid = (size-1)//2
             self.board[mid][mid] = 1
             self.board[mid][mid+1] = 2
-        self.hashMatrix = numpy.random.randint(low=0,high=2**60-1,size=(3,size,size)).tolist()
+            self.stones[0][mid][mid] = True
+            self.stones[1][mid][mid+1] = True
+        # self.assertBoardCorrect()
+        # self.hashMatrix = np.random.randint(low=0,high=2**60-1,size=(3,size,size)).tolist()
+        # for y in range(self.size):
+        #     for x in range(self.size):
+        #         self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+
+    def assertBoardCorrect(self):
+        assert True
         for y in range(self.size):
             for x in range(self.size):
-                self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+                if self.board[y][x] != 0:
+                    assert self.stones[self.board[y][x]-1][y][x] == True
+                    assert self.stones[2-self.board[y][x]][y][x] == False
+                else:
+                    assert self.stones[0][y][x] == False
+                    assert self.stones[1][y][x] == False
 
     def numberOfMovesPlayed(self):
         return len(self.moves)
@@ -49,17 +66,21 @@ class Board:
             exit(1)
 
         self.moves.append((y,x))
-        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self.board[y][x] = self.toMove
-        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self.stones[self.toMove-1][y][x] = True
+        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self._flipMove()
+        # self.assertBoardCorrect()
 
     def undoMove(self):
         y, x = self.moves.pop()
-        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self.board[y][x] = 0
-        self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
+        self.stones[2-self.toMove][y][x] = False
+        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self._flipMove()
+        # self.assertBoardCorrect()
 
     def _flipMove(self):
         self.toMove = 3-self.toMove
@@ -68,8 +89,8 @@ class Board:
         y, x = yx_tuple
         return self.board[y][x]
     
-    def __hash__(self) -> int:
-        return self.hashValue
+    # def __hash__(self) -> int:
+    #     return self.hashValue
 
     def inBounds(self, y, x):
         return y >= 0 and y < self.size and x >= 0 and x < self.size
@@ -84,13 +105,6 @@ class Board:
                 return 0
         return color
 
-    def hasWinningShape(self, y, x):
-        for shape in shapes:
-            winner = self.hasSpecificWinningShape(y, x, shape)
-            if winner != 0:
-                return winner
-        return 0
-
     def wouldWin(self, color, y, x):
         self.board[y][x] = color
         for shape in shapes:
@@ -101,14 +115,21 @@ class Board:
                     return True
         self.board[y][x] = 0
         return False
-
+    
     def hasWon(self):
-        for i in range(self.size):
-            for j in range(self.size):
-                winner = self.hasWinningShape(i, j)
-                if winner != 0:
-                    return winner
-        return 0
+        res = 0
+        for player in range(2):
+            stones = np.argwhere(self.stones[player])
+            pattern_positions = stones[:, None, None, :] + shapes_numpy
+            valid_mask = ((pattern_positions >= 0) & (pattern_positions < 10)).all(axis=(-2, -1))
+            valid_pattern_positions = pattern_positions[valid_mask]
+            pattern_res = self.stones[player][valid_pattern_positions[..., 0], valid_pattern_positions[..., 1]]
+            if pattern_res.all(axis=-1).any():
+                res = player+1
+                break
+
+        return res
+
 
     def gameResult(self):
         """
@@ -131,24 +152,23 @@ class Board:
         return res
 
     def movesAvailable(self):
-        moves = set()
-        for i in range(self.size):
-            for j in range(self.size):
-                if self.board[i][j] != 0:
-                    for dir in range(6):
-                        y, x = self.getNextInDir(i, j, dir)
-                        if self.inBounds(y, x) and self.board[y][x] == 0:
-                            moves.add((y,x))
-        return list(moves)
+        res = self.movesAvailableAsTensor()
+        res_pos = np.argwhere(res)
+        res_pos = [(y,x) for y,x in res_pos]
+        return res_pos
 
     def movesAvailableAsTensor(self):
-        moves = self.movesAvailable()
-        moveTensor = [[0 for _ in range(self.size)] for _ in range(self.size)]
-        for move in moves:
-            y,x = move
-            moveTensor[y][x] = 1
+        all_stones = self.stones[0] | self.stones[1]
+        res = np.zeros_like(all_stones)
+        res[:, :-1] |= all_stones[:, 1:]
+        res[:, 1:] |= all_stones[:, :-1]
+        res[:-1, :] |= all_stones[1:, :]
+        res[1:, :] |= all_stones[:-1, :]
+        res[1:, :-1] |= all_stones[:-1, 1:]
+        res[:-1, 1:] |= all_stones[1:, :-1]
+        res &= ~all_stones
 
-        return moveTensor
+        return res
 
     def convert1Dto2Dindex(self, index: int):
         return (index // self.size , index % self.size)

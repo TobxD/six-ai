@@ -171,5 +171,3 @@ class MCTSPolicyValueBot:
         if self.logPV:
             self.printMCTS(board, self.N[hash(board)], self.Q[hash(board)], self.P[hash(board)], bestMove)
         return bestMove, policy
-
-   

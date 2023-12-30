@@ -33,16 +33,21 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
     while True:
         if gv_queue:
             gv_queue.put((drawInd, board))
-        winner = board.hasWon()
+        with profiler.getProfiler("has won"):
+            winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
             print(winner, "has won after", moveNum, "moves")
             break
-        if len(board.movesAvailable()) == 0:
+        with profiler.getProfiler("moves avail"):
+            movesAvailable = board.movesAvailable()
+        if len(movesAvailable) == 0:
             result = 0
             break
-        (move_y, move_x), Y_policy = players[toMove].nextMove(board)
-        positions.append((copy.deepcopy(board.board), toMove+1, list(Y_policy.items())))
+        with profiler.getProfiler("get next move"):
+            (move_y, move_x), Y_policy = players[toMove].nextMove(board)
+        with profiler.getProfiler("store position"):
+            positions.append((copy.deepcopy(board.board), toMove+1, list(Y_policy.items())))
         board.move(move_y, move_x)
         toMove = 1-toMove
         moveNum += 1
@@ -153,6 +158,7 @@ def generateGames(cfg, gv_queue):
     (gameCounter, posCounter) = gameStats(games)
     print(f"results: {gameCounter}")
     print(f"number of positions: {posCounter}")
+    print(f"time per position: {(end - start)/posCounter}")
     storeGames(games, cfg.play.store_path)
     return gameCounter
 
