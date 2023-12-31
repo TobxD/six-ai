@@ -27,8 +27,6 @@ class Board:
     stones = [np.zeros((10,10), dtype=bool) for i in range(2)]
     toMove = 1
     moves = []
-    hashMatrix = []
-    hashValue = 0
 
     def __init__(self, size, startPieces=False):
         self.size = size
@@ -40,22 +38,6 @@ class Board:
             self.board[mid][mid+1] = 2
             self.stones[0][mid][mid] = True
             self.stones[1][mid][mid+1] = True
-        # self.assertBoardCorrect()
-        # self.hashMatrix = np.random.randint(low=0,high=2**60-1,size=(3,size,size)).tolist()
-        # for y in range(self.size):
-        #     for x in range(self.size):
-        #         self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
-
-    def assertBoardCorrect(self):
-        assert True
-        for y in range(self.size):
-            for x in range(self.size):
-                if self.board[y][x] != 0:
-                    assert self.stones[self.board[y][x]-1][y][x] == True
-                    assert self.stones[2-self.board[y][x]][y][x] == False
-                else:
-                    assert self.stones[0][y][x] == False
-                    assert self.stones[1][y][x] == False
 
     def numberOfMovesPlayed(self):
         return len(self.moves)
@@ -66,21 +48,15 @@ class Board:
             exit(1)
 
         self.moves.append((y,x))
-        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self.board[y][x] = self.toMove
         self.stones[self.toMove-1][y][x] = True
-        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self._flipMove()
-        # self.assertBoardCorrect()
 
     def undoMove(self):
         y, x = self.moves.pop()
-        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self.board[y][x] = 0
         self.stones[2-self.toMove][y][x] = False
-        # self.hashValue ^= self.hashMatrix[self.board[y][x]][y][x]
         self._flipMove()
-        # self.assertBoardCorrect()
 
     def _flipMove(self):
         self.toMove = 3-self.toMove
@@ -89,9 +65,6 @@ class Board:
         y, x = yx_tuple
         return self.board[y][x]
     
-    # def __hash__(self) -> int:
-    #     return self.hashValue
-
     def inBounds(self, y, x):
         return y >= 0 and y < self.size and x >= 0 and x < self.size
 

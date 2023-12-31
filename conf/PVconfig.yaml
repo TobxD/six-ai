@@ -3,7 +3,7 @@
 defaults:
   - _self_
   # - player1: mcts_nn2
-  # - player2: mcts_nn2
+  # - player1: mcts_nn2
   # - player1: random_search_winning
   # - player2: random_search_winning
   - player1: random_nolook
@@ -20,7 +20,7 @@ general:
 #### PLAY ####
 play:
   workers: 1
-  num_games: 1000
+  num_games: 10
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null

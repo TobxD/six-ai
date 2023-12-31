@@ -22,6 +22,42 @@ def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomU
     bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
     return bot
 
+class Node:
+    def __init__(self, board, parent, last_move, network):
+        self.parent = parent
+        self.last_move = last_move
+        self.game_result = board.gameResult()
+        if self.game_result != None:
+            if board.toMove == 1:
+                self.game_result *= -1
+            self.V = self.game_result
+            return
+        self.moves = list(sorted(board.movesAvailable()))
+        self.children = [None for _ in range(len(self.moves))]
+        self.N = np.zeros(len(self.moves))
+        self.Q = np.zeros(len(self.moves))
+        self.P, self.V = self._getPV(board, network)
+
+    def _getPV(self, s: Board, network):
+        with profiler.getProfiler("getPV"):
+            with profiler.getProfiler("prepare input data"):
+                inputData = PVData.prepareInput(s.board,s.toMove)
+            with profiler.getProfiler("create input tensor"):
+                # X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
+                X = torch.stack(inputData, 0).to(torch.device("cpu")).unsqueeze(0)
+            with profiler.getProfiler("eval network"):
+                policy, value = network(X)
+            with profiler.getProfiler("moves avail"):
+                movesAvailable = torch.tensor(s.movesAvailableAsTensor())
+            with profiler.getProfiler("prep policy for softmax"):
+                policy = policy[0, 0].to(CPU_DEVICE)
+                policy[~movesAvailable] = float("-inf")
+                policy = torch.softmax(policy.view(-1), 0).view_as(policy)
+            P = policy.detach().numpy()[movesAvailable]
+
+        # TODO verify P does the right thing. verify order is as in sorted moves available
+        return P, value[0]
+
 class MCTSPolicyValueBot:
     myColor = 1
     otherColor = 2
@@ -42,118 +78,54 @@ class MCTSPolicyValueBot:
         self.c_puct = c_puct
         self.logPV = cfg.play.log_pv
 
-    def getPV(self, s: Board):
-        with profiler.getProfiler("getPV"):
-            with profiler.getProfiler("prepare input data"):
-                inputData = PVData.prepareInput(s.board,s.toMove)
-            with profiler.getProfiler("create input tensor"):
-                X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
-            with profiler.getProfiler("eval network"):
-                policy, value = self.network(X)
-            with profiler.getProfiler("moves avail"):
-                movesAvailable = s.movesAvailable()
-            with profiler.getProfiler("prep policy for softmax"):
-                policyForSoftmax = []
-                policy = policy[0].to(CPU_DEVICE)
-                with profiler.getProfiler("iterate over moves avail"):
-                    possibleMoves = torch.zeros(s.size**2, dtype=torch.bool, device=CPU_DEVICE)
-                    for move in movesAvailable:
-                        possibleMoves[s.convert2Dto1Dindex(move)] = True
-                        #policyForSoftmax.append(policy[s.convert2Dto1Dindex(move)])
-                with profiler.getProfiler("convert policy to torch"):
-                    #print(policyForSoftmax)
-                    #policyTorch = torch.FloatTensor(policyForSoftmax)
-                    policyTorch = policy[possibleMoves]
-                with profiler.getProfiler("actual softmax"):
-                    policyForSoftmax = torch.softmax(policyTorch,0)
-            P = {}
-            for move, probability in zip(movesAvailable,policyForSoftmax):
-                #validPolicy[s.convert2Dto1Dindex(move)] = policyForSoftmax[i]
-                P[move] = probability
+    def search(self, s: Board, node: Node):
+        if node.game_result != None:
+            return -node.game_result
 
-        return P, value[0]
-
-    def search(self, s: Board):
-        with profiler.getProfiler("get game result"):
-            gameResult = s.gameResult()
-        if gameResult != None:
-            if s.toMove == 1:
-                gameResult *= -1
-            return -gameResult
-
-        if hash(s) not in self.visited:
-            self.visited.add(hash(s))
-            self.P[hash(s)], v = self.getPV(s)
-            # Adding Dirichlet noise
-            children = self.P[hash(s)].keys()
-            alpha = 1/3 # pick value of Chess from AlphaGO Zero paper as we have similar number of moves
-            epsilon = 0.25
-            dirichlet = np.random.dirichlet([alpha for i in range(len(children))])
-            ind = 0
-            for child in children:
-                self.P[hash(s)][child] = (1-epsilon) * self.P[hash(s)][child] + epsilon * dirichlet[ind]
-                ind += 1
-            return -float(v)
-    
-        max_u, best_a = -float("inf"), -1
-        for a in s.movesAvailable():
-            u = self.Q[hash(s)][a] + self.c_puct*self.P[hash(s)][a]*math.sqrt(1+sum(self.N[hash(s)].values()))/(1+self.N[hash(s)][a])
-            if u>max_u:
-                max_u = u
-                best_a = a
-        a = best_a
+        ucts = node.Q + self.c_puct*node.P*math.sqrt(1+sum(node.N))/(1+node.N)
+        a_ind = np.argmax(ucts)
+        a = node.moves[a_ind]
         
-        #print (f"Explore a = {a}")
         s.move(*a)
-        v = self.search(s)
+        if node.children[a_ind] == None:
+            node.children[a_ind] = Node(s, node, a, self.network)
+            v = -node.children[a_ind].V
+        else:
+            v = self.search(s, node.children[a_ind])
         s.undoMove()
 
-        
-        #print(f"Am Zug: {s.toMove}, a = {a}, v = {v}, Q = {self.Q[hash(s)][a]}, N = {self.N[hash(s)][a]}, hash = {hash(s)}")
+        node.Q[a_ind] = (node.N[a_ind] * node.Q[a_ind] + v) / (node.N[a_ind]+1)
+        node.N[a_ind] += 1
 
-        self.Q[hash(s)][a] = (self.N[hash(s)][a] * self.Q[hash(s)][a] + v) / (self.N[hash(s)][a]+1)
-        self.N[hash(s)][a] += 1
-
-        #print(f"Am Zug: {s.toMove}, a = {a}, v = {v}, Q = {self.Q[hash(s)][a]}, N = {self.N[hash(s)][a]}, hash = {hash(s)}")
         return -v
 
-    def printMCTS (self, board, N: defaultdict, Q, P, bestMove):
+    def printMCTS (self, board, node, bestMove):
         # docu at: https://docs.python.org/3/library/string.html#formatstrings
         TGREEN =  '\033[32m'
         ENDC = '\033[m'
 
         print (board)
         print("{:^5} {:^5} {:^7} {:^7}".format("move", "N", "Q", "P"))
-        for key in sorted(N.keys()):
-            print(  (TGREEN if key==bestMove else '') + 
-                    "{:^5} {:^5} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in key), N[key], Q[key], float(P[key])) +
-                    (ENDC if key==bestMove else ''))
+        for i, move in enumerate(node.moves):
+            print(  (TGREEN if move==bestMove else '') + 
+                    "{:^5} {:^5} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i])) +
+                    (ENDC if move==bestMove else ''))
         print (bestMove)
+
+    def _add_dirichlet_noise(self, node, epsilon=0.25, alpha=1/3):
+        dirichlet = np.random.dirichlet([alpha for i in range(len(node.children))])
+        node.P = (1-epsilon) * node.P + epsilon * dirichlet
 
     def nextMove(self, board):
         print("moving with mcts")
-        self.N = defaultdict(lambda: defaultdict(lambda: 0))
-        self.Q = defaultdict(lambda: defaultdict(lambda: 0))
-        self.P = {}
-        self.visited = set()
+        root = Node(board, None, None, self.network)
+        self._add_dirichlet_noise(root)
 
         with profiler.getProfiler("mcts iterations"):
             for _ in range(self.numIterations):
-                self.search(board)
-
-        ### Best move according to Q
-        #bestval = float("-inf")
-        #bestMove = None
-        #for move in self.Q[hash(board)]:
-        #    if self.N[hash(board)][move] > 0:
-        #        if self.Q[hash(board)][move] > bestval:
-        #            bestval = self.Q[hash(board)][move]
-        #            bestMove = move
-
-        
-        N = self.N[hash(board)]
-        sumVal = sum(N.values())
-        policy = {key:N[key]/sumVal for key in N}
+                self.search(board, root)
+        policy = root.N / sum(root.N)
+        policy = {move:policy[i] for i, move in enumerate(root.moves)}
 
         if board.numberOfMovesPlayed() < self.randomUpToMove:
             cutoff = random.random()
@@ -166,8 +138,9 @@ class MCTSPolicyValueBot:
         else:
             ### Best move according to N
             # TODO: break ties randomly
-            bestMove = max(self.N[hash(board)], key=self.N[hash(board)].get, default='')
+            bestMoveInd = np.argmax(root.N)
+            bestMove = root.moves[bestMoveInd]
 
         if self.logPV:
-            self.printMCTS(board, self.N[hash(board)], self.Q[hash(board)], self.P[hash(board)], bestMove)
+            self.printMCTS(board, root, bestMove)
         return bestMove, policy

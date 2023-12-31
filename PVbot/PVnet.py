@@ -117,8 +117,12 @@ class Network(nn.Module):
                 for _ in range(residual_layers)
             ]
         )
-        self.policy_conv = ConvBlock(residual_channels, 2, 1)
-        self.policy_fc = nn.Linear(2 * board_size * board_size, board_size * board_size)
+        self.policy_conv = nn.Sequential(
+            ConvBlock(residual_channels, residual_channels, 1),
+            ConvBlock(residual_channels, 1, 1),
+        )
+        # self.policy_conv = ConvBlock(residual_channels, 2, 1)
+        # self.policy_fc = nn.Linear(2 * board_size * board_size, board_size * board_size)
         self.value_conv = ConvBlock(residual_channels, 1, 1)
         self.value_fc_1 = nn.Linear(board_size * board_size, 256)
         self.value_fc_2 = nn.Linear(256, 1)
@@ -132,7 +136,7 @@ class Network(nn.Module):
 
         # policy head
         pol = self.policy_conv(x)
-        pol = self.policy_fc(torch.flatten(pol, start_dim=1))
+        # pol = self.policy_fc(torch.flatten(pol, start_dim=1))
 
         # value head
         val = self.value_conv(x)
