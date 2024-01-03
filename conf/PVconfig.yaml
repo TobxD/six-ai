@@ -2,7 +2,7 @@
 
 defaults:
   - _self_
-  - player2: mcts_nn
+  - player2: mcts_nn2
   - player1: mcts_nn2
   # - player1: random_search_winning
   # - player1: random_search_losing
@@ -16,11 +16,12 @@ general:
   mode: "play"
   # mode: "train"
   # mode: "iterate"
+  # mode: "eval"
 
 #### PLAY ####
 play:
   workers: 1
-  num_games: 4
+  num_games: 1
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null
@@ -97,3 +98,15 @@ iterate:
   # We only use whole files and take the smallest number of past files such
   # we have at least this number of positions to train on
   num_past_train_positions: 150000
+
+eval:
+  num_evaluation_games: 20
+  models:
+    - player: /conf/player/mcts_nn.yaml
+      path: null
+    - player: /conf/player/mcts_nn.yaml
+      path: /models/iteration_models/model-10.ckpt
+    - player: /conf/player/mcts_nn.yaml
+      path: /outputs/2024-01-02/20-23-11/model-4.ckpt
+    - player: /conf/player/mcts_nn.yaml
+      path: /outputs/2024-01-02/20-23-11/model-9.ckpt

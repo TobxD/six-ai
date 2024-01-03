@@ -50,7 +50,8 @@ class Node:
                 # X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
                 X = torch.stack(inputData, 0).to(torch.device("cuda")).unsqueeze(0)
             with profiler.getProfiler("eval network"):
-                policy, value = network(X)
+                with torch.no_grad():
+                    policy, value = network(X)
             with profiler.getProfiler("moves avail"):
                 movesAvailable = torch.tensor(s.movesAvailableAsTensor())
             with profiler.getProfiler("prep policy for softmax"):
@@ -93,6 +94,8 @@ class MCTSPolicyValueBot:
         node.Q[not_visited] = avg_q
         ucts = node.Q + self.c_puct*node.P*math.sqrt(1+sum(node.N))/(1+node.N)
         a_ind = np.argmax(ucts)
+        # do non-visited ones first
+        # a_ind = np.argmax(ucts + 1000*not_visited)
         a = node.moves[a_ind]
 
         s.move(*a)
@@ -114,15 +117,17 @@ class MCTSPolicyValueBot:
         ENDC = '\033[m'
 
         log_strs = []
+        log_strs.append(f"V: {node.V: 1.4f}")
         log_strs.append(f"worker: {os.getpid()}")
         log_strs.append(str(board))
         log_strs.append("{:^5} {:^5} {:^7} {:^7} {:^7}".format("move", "N", "Q", "P", "V"))
         for i, move in enumerate(node.moves):
+            node_val = "-------" if node.children[i] is None else f"{node.children[i].V: 1.4f}"
             log_strs.append((TGREEN if move==bestMove else '') + 
-                            "{:^5} {:^5} {: 1.4f} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i]), node.children[i].V) +
+                            "{:^5} {:^5} {: 1.4f} {: 1.4f} {}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i]), node_val) +
                             (ENDC if move==bestMove else ''))
         log_strs.append(str(bestMove))
-        print("\n".join(log_strs))
+        print("\n".join(log_strs) + "\n")
 
 
     def _add_dirichlet_noise(self, node, epsilon=0.25, alpha=1/3):

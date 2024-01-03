@@ -1,4 +1,5 @@
 import logging
+from tabulate import tabulate
 from pprint import pprint
 import queue
 import shutil
@@ -17,6 +18,7 @@ from timeit import default_timer as timer
 
 import hydra
 from omegaconf.dictconfig import DictConfig
+from omegaconf import OmegaConf
 from omegaconf import open_dict
 
 from timing import profiler
@@ -171,10 +173,15 @@ def generateGames(cfg, gv_queue):
     return gameCounter
 
 # returns fraction won by model 1
-def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue):
+def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue, player1_config=None, player2_config=None):
     newCfg = copy.deepcopy(cfg)
     newCfg.play.num_games = cnt_per_color
     newCfg.play.store_path = None
+
+    if player1_config:
+        newCfg.player1 = player1_config
+    if player2_config:
+        newCfg.player2 = player2_config
 
     newCfg.player1.dirichletNoise = False
     newCfg.player2.dirichletNoise = False
@@ -230,6 +237,31 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
             logger.info(f"deleting new model {next_model_path}")
             os.remove(util.toPath(next_model_path))
 
+def eval_models(cfg: DictConfig, gv_queue):
+    cfg = copy.deepcopy(cfg)
+    num_models = len(cfg.eval.models)
+    results = [["/" for _ in range(num_models)] for _ in range(num_models)]
+    for i1 in range(num_models):
+        # load config from path
+        cfg.eval.models[i1].player = OmegaConf.load(util.toPath(cfg.eval.models[i1].player))
+        for i2 in range(i1):
+            c1 = cfg.eval.models[i1]
+            c2 = cfg.eval.models[i2]
+            res = evalModel(cfg, c1.path, c2.path, cfg.eval.num_evaluation_games, gv_queue, c1.player, c2.player)
+            results[i1][i2] = res
+            results[i2][i1] = 1-res
+    with open(util.toPath("eval_results.json"), "w") as f:
+        json.dump(results, f)
+    
+    headers = ["Model"] + [f"Model {i}" for i in range(num_models)]
+    table_data = [[f"Model {i}"] + results[i] for i in range(num_models)]
+    info_str = "\n".join([f"Model {i}: {cfg.eval.models[i].path}" for i in range(num_models)])
+    table_str = info_str + "\n" + tabulate(table_data, headers, tablefmt="grid")
+
+    with open(util.toPath("eval_results.txt"), "w") as f:
+        f.write(table_str)
+    print(table_str)
+
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
     logger.info(f"current wd: {os.getcwd()}")
     if cfg.general.mode == "play":
@@ -238,6 +270,8 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
         PVbot_util.training(cfg)
     elif cfg.general.mode == "iterate":
         generateTrainLoop(cfg, gv_queue)
+    elif cfg.general.mode == "eval":
+        eval_models(cfg, gv_queue)
     else:
         logger.error(f"invalid mode \"{cfg.general.mode}\"selected")
     profiler.printStats()
