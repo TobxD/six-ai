@@ -33,9 +33,8 @@ class GameCanvas(Canvas):
         self.pack()
 
 class GameViewer():
-    q = multiprocessing.Manager().Queue()
-
     def __init__(self):
+        self.q = multiprocessing.Manager().Queue()
         self.root = Tk()
         self.windows = {}
         self.windows[0] = GameCanvas(self.root, height=450, width=650)

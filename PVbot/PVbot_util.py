@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from PVbot import PVData, PVnet
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__file__)
 
 def trainModel(model, trainer, dataloader, dataloader_conf: DictConfig, save_path):
     trainer.fit(model, train_dataloaders=dataloader.train_dataloader(dataloader_conf), val_dataloaders=dataloader.val_dataloader(dataloader_conf))
@@ -28,7 +28,7 @@ def readDataWithPolicy(filename):
     data = []
     with open(util.toPath(filename), "r") as f:
         lines = f.readlines()
-        print(f"Lines in data file: {len(lines)}")
+        logger.info(f"Lines in data file: {len(lines)}")
         lines = [line[:-1] for line in lines]
         for i in range(0, len(lines), 2):
             board, toMove, y_policy = json.loads(lines[i])

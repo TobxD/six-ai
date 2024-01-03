@@ -1,11 +1,12 @@
 from collections import defaultdict
+import os, copy
 import sys, random
+import logging
 import numpy as np
 import math
 from xmlrpc.client import Boolean
 import PVbot.PVnet as PVnet
 import PVbot.PVData as PVData
-
 
 sys.path.append('.')
 
@@ -16,10 +17,12 @@ from omegaconf.dictconfig import DictConfig
 from board import Board
 from timing import profiler
 
+logger = logging.getLogger(__file__)
+
 CPU_DEVICE = torch.device("cpu")
 
 def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomUpToMove=False):
-    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct) #MCTSPolicyValueBot(2, network)
+    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct, dirichletNoise=player.dirichletNoise, randomTemp=player.randomTemp) #MCTSPolicyValueBot(2, network)
     return bot
 
 class Node:
@@ -37,14 +40,15 @@ class Node:
         self.N = np.zeros(len(self.moves))
         self.Q = np.zeros(len(self.moves))
         self.P, self.V = self._getPV(board, network)
+        self.V = self.V.item()
 
     def _getPV(self, s: Board, network):
         with profiler.getProfiler("getPV"):
             with profiler.getProfiler("prepare input data"):
-                inputData = PVData.prepareInput(s.board,s.toMove)
+                inputData = PVData.prepareInput(s.board, s.toMove)
             with profiler.getProfiler("create input tensor"):
                 # X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
-                X = torch.stack(inputData, 0).to(torch.device("cpu")).unsqueeze(0)
+                X = torch.stack(inputData, 0).to(torch.device("cuda")).unsqueeze(0)
             with profiler.getProfiler("eval network"):
                 policy, value = network(X)
             with profiler.getProfiler("moves avail"):
@@ -56,7 +60,7 @@ class Node:
             P = policy.detach().numpy()[movesAvailable]
 
         # TODO verify P does the right thing. verify order is as in sorted moves available
-        return P, value[0]
+        return P, value[0].cpu()
 
 class MCTSPolicyValueBot:
     myColor = 1
@@ -64,12 +68,12 @@ class MCTSPolicyValueBot:
     numIterations: int
     logPV: bool
 
-    def __init__(self, myColor, model_path, cfg, randomUpToMove = 0, network = None, numIterations = 200, c_puct = 1):
+    def __init__(self, myColor, model_path, cfg, randomUpToMove = 0, network = None, numIterations = 200, c_puct = 1, dirichletNoise = False, randomTemp=1):
         self.myColor = myColor
         self.randomUpToMove = randomUpToMove
         self.otherColor = 3-myColor
-        #self.device = torch.device("cuda")
-        self.device = torch.device("cpu")
+        self.device = torch.device("cuda")
+        # self.device = torch.device("cpu")
         self.network = PVnet.getModel(cfg, model_path)
         self.network.to(self.device)
         self.network.eval()
@@ -77,15 +81,20 @@ class MCTSPolicyValueBot:
         self.numIterations = numIterations
         self.c_puct = c_puct
         self.logPV = cfg.play.log_pv
+        self.dirichletNoise = dirichletNoise
+        self.randomTemp = randomTemp
 
     def search(self, s: Board, node: Node):
         if node.game_result != None:
             return -node.game_result
 
+        not_visited = node.N == 0
+        avg_q = 0 if not_visited.all() else np.sum(node.Q * node.N) / np.sum(node.N)
+        node.Q[not_visited] = avg_q
         ucts = node.Q + self.c_puct*node.P*math.sqrt(1+sum(node.N))/(1+node.N)
         a_ind = np.argmax(ucts)
         a = node.moves[a_ind]
-        
+
         s.move(*a)
         if node.children[a_ind] == None:
             node.children[a_ind] = Node(s, node, a, self.network)
@@ -104,27 +113,33 @@ class MCTSPolicyValueBot:
         TGREEN =  '\033[32m'
         ENDC = '\033[m'
 
-        print (board)
-        print("{:^5} {:^5} {:^7} {:^7}".format("move", "N", "Q", "P"))
+        log_strs = []
+        log_strs.append(f"worker: {os.getpid()}")
+        log_strs.append(str(board))
+        log_strs.append("{:^5} {:^5} {:^7} {:^7} {:^7}".format("move", "N", "Q", "P", "V"))
         for i, move in enumerate(node.moves):
-            print(  (TGREEN if move==bestMove else '') + 
-                    "{:^5} {:^5} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i])) +
-                    (ENDC if move==bestMove else ''))
-        print (bestMove)
+            log_strs.append((TGREEN if move==bestMove else '') + 
+                            "{:^5} {:^5} {: 1.4f} {: 1.4f} {: 1.4f}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i]), node.children[i].V) +
+                            (ENDC if move==bestMove else ''))
+        log_strs.append(str(bestMove))
+        print("\n".join(log_strs))
+
 
     def _add_dirichlet_noise(self, node, epsilon=0.25, alpha=1/3):
         dirichlet = np.random.dirichlet([alpha for i in range(len(node.children))])
         node.P = (1-epsilon) * node.P + epsilon * dirichlet
 
     def nextMove(self, board):
-        print("moving with mcts")
         root = Node(board, None, None, self.network)
-        self._add_dirichlet_noise(root)
+        if self.dirichletNoise:
+            self._add_dirichlet_noise(root)
 
         with profiler.getProfiler("mcts iterations"):
             for _ in range(self.numIterations):
                 self.search(board, root)
-        policy = root.N / sum(root.N)
+        
+        tempN = root.N**(1/self.randomTemp)
+        policy = tempN / sum(tempN)
         policy = {move:policy[i] for i, move in enumerate(root.moves)}
 
         if board.numberOfMovesPlayed() < self.randomUpToMove:

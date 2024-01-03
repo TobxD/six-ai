@@ -20,7 +20,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from board import SIZE
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__file__)
 
 DataPoint = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
@@ -118,7 +118,7 @@ class Network(nn.Module):
             ]
         )
         self.policy_conv = nn.Sequential(
-            ConvBlock(residual_channels, residual_channels, 1),
+            ResBlock(residual_channels, residual_channels),
             ConvBlock(residual_channels, 1, 1),
         )
         # self.policy_conv = ConvBlock(residual_channels, 2, 1)
@@ -128,19 +128,15 @@ class Network(nn.Module):
         self.value_fc_2 = nn.Linear(256, 1)
 
     def forward(self, planes):
-        # first conv layer
         x = self.conv_input(planes)
-
-        # residual tower
         x = self.residual_tower(x)
 
         # policy head
         pol = self.policy_conv(x)
-        # pol = self.policy_fc(torch.flatten(pol, start_dim=1))
 
         # value head
         val = self.value_conv(x)
-        val = F.relu(self.value_fc_1(torch.flatten(val, start_dim=1)), inplace=True)
+        val = F.relu(self.value_fc_1(torch.flatten(val, start_dim=1)))
         val = torch.tanh(self.value_fc_2(val))
 
         return pol, val
@@ -257,6 +253,7 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
     ) -> torch.Tensor:
         planes, target_move, target_val = batch
         pred_move, pred_val = self(planes)
+        pred_move = pred_move.view(pred_move.shape[0], -1)
         mse_loss, cross_entropy_loss, loss = self.loss(
             pred_move, pred_val, target_move, target_val
         )
@@ -273,6 +270,7 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
     def validation_step(self, batch: DataPoint, batch_idx: int) -> None:  # type: ignore
         planes, target_move, target_val = batch
         pred_move, pred_val = self(planes)
+        pred_move = pred_move.view(pred_move.shape[0], -1)
         mse_loss, cross_entropy_loss, loss = self.loss(
             pred_move, pred_val, target_move, target_val
         )

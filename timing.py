@@ -1,4 +1,7 @@
 import time
+import logging
+
+logger = logging.getLogger(__file__)
 
 class TimeTracker:
     def __init__(self, name):
@@ -25,6 +28,7 @@ class Profiler:
 
     def printStats(self):
         for name in self.timer:
-            print(name, ":", self.timer[name].total_time)
+            logger.info(f"{name}: {self.timer[name].total_time}")
+            print(f"{name}: {self.timer[name].total_time}")
 
 profiler = Profiler()

@@ -22,16 +22,12 @@ shapes = [
 shapes_numpy = np.array(shapes)
 
 class Board:
-    size = 10
-    board = [[0]*10 for i in range(10)]
-    stones = [np.zeros((10,10), dtype=bool) for i in range(2)]
-    toMove = 1
-    moves = []
-
     def __init__(self, size, startPieces=False):
         self.size = size
         self.board = [[0]*size for i in range(size)]
         self.stones = [np.zeros((size,size), dtype=bool) for i in range(2)]
+        self.toMove = 1
+        self.moves = []
         if startPieces:
             mid = (size-1)//2
             self.board[mid][mid] = 1
@@ -127,7 +123,7 @@ class Board:
     def movesAvailable(self):
         res = self.movesAvailableAsTensor()
         res_pos = np.argwhere(res)
-        res_pos = [(y,x) for y,x in res_pos]
+        res_pos = [(y,x) for y,x in res_pos.tolist()]
         return res_pos
 
     def movesAvailableAsTensor(self):

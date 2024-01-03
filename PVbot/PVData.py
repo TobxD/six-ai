@@ -5,6 +5,10 @@ from pytorch_lightning import LightningDataModule
 from omegaconf.dictconfig import DictConfig
 import random
 
+import logging
+
+logger = logging.getLogger(__file__)
+
 def prepareInput(board, toMove):
     ownBoard = [[float(x==toMove) for x in line] for line in board]
     otherBoard = [[float(x==3-toMove) for x in line] for line in board]
@@ -28,7 +32,7 @@ class PVData(LightningDataModule):
         #random.shuffle(tensor_data)
         self.train_data = tensor_data[:train_cnt]
         self.val_data = tensor_data[train_cnt:]
-        print(f"train/val data samples: {len(self.train_data)}/{len(self.val_data)}")
+        logger.info(f"train/val data samples: {len(self.train_data)}/{len(self.val_data)}")
         random.shuffle(self.train_data)
         random.shuffle(self.val_data)
 

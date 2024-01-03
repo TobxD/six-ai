@@ -1,3 +1,4 @@
+import logging
 from pprint import pprint
 import queue
 import shutil
@@ -21,11 +22,14 @@ from omegaconf import open_dict
 from timing import profiler
 import os
 
+logger = logging.getLogger(__file__)
+
 posCnt = {-1:0, 0:0, 1:0}
 gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
 def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer = 1):
+    logger = logging.getLogger(__name__)
     moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
@@ -37,7 +41,7 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
             winner = board.hasWon()
         if winner != 0:
             result = winner*2 - 3
-            print(winner, "has won after", moveNum, "moves")
+            print(f"{winner} has won after {moveNum} moves")
             break
         with profiler.getProfiler("moves avail"):
             movesAvailable = board.movesAvailable()
@@ -54,7 +58,7 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
     posCnt[result] += moveNum
     gameCnt[result] += 1
 
-    profiler.printStats()
+    # profiler.printStats()
 
     # -1 means first player wins, 1 means second player wins
     return (positions, result)
@@ -90,11 +94,13 @@ def collectGames(cfg, result_queue, game_in_queue, game_num_queue, gv_queue, dra
     for d in data:
         result_queue.put(d)
 
+    profiler.printStats()
+
 def storeGames(games, path):
     if path==None:
         return
     with open(Path(util.toPath(path)), "a") as f:
-        print(f"starting writing {len(games)} games to {path}")
+        logger.info(f"starting writing {len(games)} games to {path}")
         for game in games:
             positions, result = game
             for position in positions:
@@ -112,7 +118,7 @@ def gameStats(games):
 
 def generateGames(cfg, gv_queue):
     workers = min(cfg.play.workers, cfg.play.num_games)
-    print(f"Executing {cfg.play.num_games} games on {workers} of your {mp.cpu_count()} CPUs")
+    logger.info(f"Executing {cfg.play.num_games} games on {workers} of your {mp.cpu_count()} CPUs")
 
     start = timer()
     """
@@ -152,13 +158,15 @@ def generateGames(cfg, gv_queue):
     for w in worker_processes:
         w.join()
     end = timer()
-    print(f'elapsed time: {end - start} s')
-    print(f'per Game: {(end - start)/cfg.play.num_games} s')
+
+    profiler.printStats()
 
     (gameCounter, posCounter) = gameStats(games)
-    print(f"results: {gameCounter}")
-    print(f"number of positions: {posCounter}")
-    print(f"time per position: {(end - start)/posCounter}")
+    logger.info(f'elapsed time: {end - start} s\n'
+      f'per Game: {(end - start) / cfg.play.num_games} s\n'
+      f'results: {gameCounter}\n'
+      f'number of positions: {posCounter}\n'
+      f'time per position: {(end - start) / posCounter}')
     storeGames(games, cfg.play.store_path)
     return gameCounter
 
@@ -167,6 +175,9 @@ def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue):
     newCfg = copy.deepcopy(cfg)
     newCfg.play.num_games = cnt_per_color
     newCfg.play.store_path = None
+
+    newCfg.player1.dirichletNoise = False
+    newCfg.player2.dirichletNoise = False
 
     newCfg.player1.model_path = model_path1
     newCfg.player2.model_path = model_path2
@@ -207,20 +218,20 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
         generateGames(cfg, gv_queue)
         game_data_files = addFile(game_data_files, game_path, cfg.iterate.num_past_train_positions)
         cfg.data.train_data_path = game_data_files
-        print("training on", game_data_files)
+        logger.info("training on " + str(game_data_files))
         PVbot_util.training(cfg)
         winning_perc = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
-        print(f"new generation {i} won with frequency {winning_perc}")
+        logger.info(f"new generation {i} won with frequency {winning_perc}")
         if winning_perc >= cfg.iterate.winning_threshold:
-            print(f"continuing with new model {next_model_path}")
+            logger.info(f"continuing with new model {next_model_path}")
             model_path = next_model_path
         else:
-            print(f"keeping old model {model_path}")
-            print(f"deleting new model {next_model_path}")
+            logger.info(f"keeping old model {model_path}")
+            logger.info(f"deleting new model {next_model_path}")
             os.remove(util.toPath(next_model_path))
 
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
-    print(f"current wd: {os.getcwd()}")
+    logger.info(f"current wd: {os.getcwd()}")
     if cfg.general.mode == "play":
         generateGames(cfg, gv_queue)
     elif cfg.general.mode == "train":
@@ -228,12 +239,12 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
     elif cfg.general.mode == "iterate":
         generateTrainLoop(cfg, gv_queue)
     else:
-        print(f"invalid mode \"{cfg.general.mode}\"selected")
+        logger.error(f"invalid mode \"{cfg.general.mode}\"selected")
     profiler.printStats()
 
 @hydra.main(config_path="conf", config_name="PVconfig", version_base="1.1")
 def main(cfg: DictConfig):
-    print(cfg)
+    logger.info(cfg)
     if cfg.play.game_viewer:
         gv = gameviewer.GameViewer()
         gv.start(lambda gv_queue: doWork(cfg, gv, gv_queue))
@@ -241,4 +252,5 @@ def main(cfg: DictConfig):
         doWork(cfg, None, None)
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn', force=True)
     main()
