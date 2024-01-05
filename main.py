@@ -81,9 +81,9 @@ def playGame(cfg, randomColor, gv_queue, drawInd):
     else:
         player1 = getPlayer(cfg.player2, cfg, 2)
         player2 = getPlayer(cfg.player1, cfg, 1)
-    # if cfg.player1.player_type == "mcts_nn" and cfg.player1 == cfg.player2:
-    #     player1.set_other_player(player2)
-    #     player2.set_other_player(player1)
+    if cfg.player1.player_type == "mcts_nn" and cfg.player1 == cfg.player2:
+        player1.other_player = player2
+        player2.other_player = player1
     return simulate(board, player1, player2, gv_queue, drawInd)
 
 def collectGames(cfg, result_queue, game_in_queue, game_num_queue, gv_queue, drawInd):

@@ -2,8 +2,8 @@
 
 defaults:
   - _self_
-  - player1: mcts_nn2_eval
-  - player2: mcts_nn2_eval2
+  - player1: mcts_nn2
+  - player2: mcts_nn2
   # - player1: random_search_winning
   # - player1: random_search_losing
   # - player1: random_nolook
@@ -15,15 +15,15 @@ defaults:
 
 general:
   board_size: 10
-  mode: "play"
+  # mode: "play"
   # mode: "train"
-  # mode: "iterate"
+  mode: "iterate"
   # mode: "eval"
 
 #### PLAY ####
 play:
   workers: 4
-  num_games: 20
+  num_games: 1000
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null
@@ -88,7 +88,7 @@ train:
     momentum: 0.9
     nesterov: True
     # weight_decay: 0.003
-    weight_decay: 0
+    weight_decay: 0.000001
 
 pl_trainer:
   max_epochs: 1
@@ -99,7 +99,8 @@ pl_trainer:
 #### ITERATION ####
 iterate:
   # model_start_path: /models/iteration_models/model-10.ckpt
-  model_start_path: /models/iteration_models_cont/mid-trained_all_data.ckpt
+  # model_start_path: /models/iteration_models_cont/mid-trained_all_data.ckpt
+  model_start_path: /models/iteration_models_cont2-mid/model-10.ckpt
   num_iterations: 1000
   # number of games to play against last model with each color (total number is twice that)
   num_evaluation_games: 20
@@ -139,11 +140,24 @@ iterate:
       "/data/iteration_games_cont/games-17.json",
       "/data/iteration_games_cont/games-18.json",
       "/data/iteration_games_cont/games-19.json",
+      "/data/iteration_games_cont2-mid/games-0.json",
+      "/data/iteration_games_cont2-mid/games-1.json",
+      "/data/iteration_games_cont2-mid/games-2.json",
+      "/data/iteration_games_cont2-mid/games-3.json",
+      "/data/iteration_games_cont2-mid/games-4.json",
+      "/data/iteration_games_cont2-mid/games-5.json",
+      "/data/iteration_games_cont2-mid/games-6.json",
+      "/data/iteration_games_cont2-mid/games-7.json",
+      "/data/iteration_games_cont2-mid/games-8.json",
+      "/data/iteration_games_cont2-mid/games-9.json",
+      "/data/iteration_games_cont2-mid/games-10.json",
+      "/data/iteration_games_cont2-mid/games-11.json",
+      "/data/iteration_games_cont2-mid/games-12.json",
     ]
   # number of positions that are at least used for training (if available)
   # We only use whole files and take the smallest number of past files such
   # we have at least this number of positions to train on
-  num_past_train_positions: 150000
+  num_past_train_positions: 200000
 
 eval:
   num_evaluation_games: 20

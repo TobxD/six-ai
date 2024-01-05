@@ -83,6 +83,8 @@ class MCTSPolicyValueBot:
         self.logPV = cfg.play.log_pv
         self.dirichletNoise = dirichletNoise
         self.randomTemp = randomTemp
+        self.tree_node_played = None
+        self.other_player = None
 
     def search(self, s: Board, node: Node):
         if node.game_result != None:
@@ -136,14 +138,19 @@ class MCTSPolicyValueBot:
         node.P = (1-epsilon) * node.P + epsilon * node.dirichlet
 
     def nextMove(self, board):
-        root = Node(board, None, None, self.network)
+        if self.other_player and self.other_player.tree_node_played:
+            root = self.other_player.tree_node_played
+        else:
+            root = Node(board, None, None, self.network)
         if self.dirichletNoise:
             self._add_dirichlet_noise(root)
 
-        with profiler.getProfiler("mcts iterations"):
-            for _ in range(self.numIterations):
-                self.search(board, root)
-        
+        # take at least 30 iterations to explore using new dirichlet noise
+        min_iterations = 30 if self.dirichletNoise else 0
+        iterations_needed = max(int(self.numIterations - root.N.sum()), min_iterations)
+        for _ in range(iterations_needed):
+            self.search(board, root)
+
         tempN = root.N**(1/self.randomTemp)
         policy_arr = tempN / sum(tempN)
         policy = {move:policy_arr[i] for i, move in enumerate(root.moves)}
@@ -159,4 +166,7 @@ class MCTSPolicyValueBot:
 
         if self.logPV:
             self.printMCTS(board, root, bestMove)
+
+        self.tree_node_played = root.children[bestMoveInd]
+
         return bestMove, policy
