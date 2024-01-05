@@ -81,6 +81,9 @@ def playGame(cfg, randomColor, gv_queue, drawInd):
     else:
         player1 = getPlayer(cfg.player2, cfg, 2)
         player2 = getPlayer(cfg.player1, cfg, 1)
+    # if cfg.player1.player_type == "mcts_nn" and cfg.player1 == cfg.player2:
+    #     player1.set_other_player(player2)
+    #     player2.set_other_player(player1)
     return simulate(board, player1, player2, gv_queue, drawInd)
 
 def collectGames(cfg, result_queue, game_in_queue, game_num_queue, gv_queue, drawInd):
@@ -226,7 +229,7 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
         game_data_files = addFile(game_data_files, game_path, cfg.iterate.num_past_train_positions)
         cfg.data.train_data_path = game_data_files
         logger.info("training on " + str(game_data_files))
-        PVbot_util.training(cfg)
+        PVbot_util.training(cfg, name=f"iter-{i}")
         winning_perc = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
         logger.info(f"new generation {i} won with frequency {winning_perc}")
         if winning_perc >= cfg.iterate.winning_threshold:
@@ -267,7 +270,7 @@ def doWork(cfg: DictConfig, game_viewer, gv_queue):
     if cfg.general.mode == "play":
         generateGames(cfg, gv_queue)
     elif cfg.general.mode == "train":
-        PVbot_util.training(cfg)
+        PVbot_util.training(cfg, name="train")
     elif cfg.general.mode == "iterate":
         generateTrainLoop(cfg, gv_queue)
     elif cfg.general.mode == "eval":

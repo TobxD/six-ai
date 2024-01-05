@@ -63,14 +63,14 @@ class ConvBlock(nn.Module):
         self, in_channels: int, out_channels: int, kernel_size: int, relu: bool = True
     ):
         super().__init__()
-        # we only support the kernel sizes of 1 and 3
-        assert kernel_size in (1, 3)
+        # we only support odd kernel sizes
+        assert kernel_size%2 == 1
 
         self.conv = nn.Conv2d(
             in_channels,
             out_channels,
             kernel_size,
-            padding=1 if kernel_size == 3 else 0,
+            padding=kernel_size//2,
             bias=False,
         )
         self.bn = nn.BatchNorm2d(out_channels, affine=False)
@@ -108,36 +108,79 @@ class Network(nn.Module):
         in_channels: int,
         residual_channels: int,
         residual_layers: int,
+        legacy: bool = False,
     ):
         super().__init__()
-        self.conv_input = ConvBlock(in_channels, residual_channels, 3)
+        self.board_size = board_size
+        if legacy:
+            self.conv_input = ConvBlock(in_channels, residual_channels, 3)
+        else:
+            self.conv_input = ConvBlock(in_channels, residual_channels, 7)
         self.residual_tower = nn.Sequential(
             *[
                 ResBlock(residual_channels, residual_channels)
                 for _ in range(residual_layers)
             ]
         )
-        self.policy_conv = nn.Sequential(
-            ResBlock(residual_channels, residual_channels),
-            ConvBlock(residual_channels, 1, 1),
-        )
-        # self.policy_conv = ConvBlock(residual_channels, 2, 1)
-        # self.policy_fc = nn.Linear(2 * board_size * board_size, board_size * board_size)
-        self.value_conv = ConvBlock(residual_channels, 1, 1)
-        self.value_fc_1 = nn.Linear(board_size * board_size, 256)
-        self.value_fc_2 = nn.Linear(256, 1)
+        self.legacy = legacy
+        if legacy:
+            self.policy_conv = nn.Sequential(
+                ResBlock(residual_channels, residual_channels),
+                ConvBlock(residual_channels, 1, 1, relu=False)
+            )
+        else:
+            # self.policy_head = nn.Sequential(
+            #     ConvBlock(residual_channels, 2, 1),
+            #     nn.Flatten(),
+            #     #TODO: delete ReLU as it is included in conv block
+            #     nn.ReLU(),
+            #     nn.Linear(2 * board_size * board_size, board_size * board_size),
+            # )
+            self.policy_head = nn.Sequential(
+                *[
+                    ResBlock(residual_channels, residual_channels)
+                    for _ in range(3)
+                ],
+                ConvBlock(residual_channels, 1, 1, relu=False),
+            )
+            # self.policy_head = nn.Sequential(
+            #     ResBlock(residual_channels, residual_channels),
+            #     ConvBlock(residual_channels, 1, 1, relu=False)
+            # )
+        if self.legacy:
+            self.value_conv = ConvBlock(residual_channels, 1, 1)
+            self.value_fc_1 = nn.Linear(board_size * board_size, 256)
+            self.value_fc_2 = nn.Linear(256, 1)
+        else:
+            self.value_conv = nn.Sequential(
+                ResBlock(residual_channels, residual_channels),
+                ConvBlock(residual_channels, 256, 1),
+            )
+            self.value_finish = nn.Sequential(
+                nn.Linear(256, 32),
+                nn.ReLU(),
+                nn.Linear(32, 1),
+            )
+
 
     def forward(self, planes):
         x = self.conv_input(planes)
         x = self.residual_tower(x)
 
-        # policy head
-        pol = self.policy_conv(x)
+        if self.legacy:
+            pol = self.policy_conv(x)
+        else:
+            pol = self.policy_head(x).view(x.shape[0], 1, self.board_size, self.board_size)
 
-        # value head
-        val = self.value_conv(x)
-        val = F.relu(self.value_fc_1(torch.flatten(val, start_dim=1)))
-        val = torch.tanh(self.value_fc_2(val))
+        if self.legacy:
+            val = self.value_conv(x)
+            val = F.relu(self.value_fc_1(torch.flatten(val, start_dim=1)))
+            val = torch.tanh(self.value_fc_2(val))
+        else:
+            val = self.value_conv(x)
+            val = torch.max(val, dim=-1).values
+            val = torch.max(val, dim=-1).values
+            val = torch.tanh(self.value_finish(val))
 
         return pol, val
 
@@ -316,8 +359,8 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
             #"monitor": "val_loss",
         }
 
-def getModel(cfg, path):
+def getModel(network_conf, train_cfg, path):
     if path == None:
         print("path empty when getting model")
-        return PVnet(train_conf=cfg.train, network_conf=cfg.network_conf)
-    return PVnet.load_from_checkpoint(util.toPath(path), s=SIZE, train_conf=cfg.train, network_conf=cfg.network_conf)
+        return PVnet(train_conf=train_cfg, network_conf=network_conf)
+    return PVnet.load_from_checkpoint(util.toPath(path), s=SIZE, train_conf=train_cfg, network_conf=network_conf)

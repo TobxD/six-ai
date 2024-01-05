@@ -1,8 +1,10 @@
 player_type: "mcts_nn"
 # model_path: /models/latest.ckpt
-model_path: /models/iteration_models/model-10.ckpt
+model_path: /models/iteration_models_cont/model-14.ckpt
+# model_path: /models/iteration_models/model-10.ckpt
 numIterations: 200
 c_puct: 10
 randomUpToMove: 10
 randomTemp: 1
-dirichletNoise: true
+dirichletNoise: false
+network_conf: ${network_conf.small_legacy}

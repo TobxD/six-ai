@@ -11,7 +11,7 @@ import torch
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from PVbot import PVData, PVnet
 
@@ -64,19 +64,22 @@ def augmentData(positions):
 def getDataloader(data_cfg):
     if type(data_cfg.train_data_path) == str:
         data_cfg.train_data_path = [data_cfg.train_data_path]
-    data = [position for path in data_cfg.train_data_path for position in readDataWithPolicy(path)]
-    data = augmentData(data)
+    data = [readDataWithPolicy(path) for path in data_cfg.train_data_path]
+    data = [augmentData(x) for x in data]
     dataloader = PVData.PVData(data)
     dataloader.prepare_data(data_cfg.train_val_split)
     return dataloader
 
-def training(cfg: DictConfig):
+def training(cfg: DictConfig, name):
     #print(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
-    network = PVnet.getModel(cfg, cfg.general_train.input_model_path)
+    network = PVnet.getModel(cfg.general_train.network_conf, cfg.train, cfg.general_train.input_model_path)
     #print(network)
 
-    #trainer_logger = instantiate(cfg.logger) if "logger" in cfg else True
-    trainer_logger = TensorBoardLogger(util.toPath("/lightning_logs"))
+    name = f"{name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+
+    # trainer_logger = TensorBoardLogger(util.toPath("/lightning_logs"))
+    trainer_logger = WandbLogger(project="six_ai", name=name, offline=False)
+    trainer_logger.experiment.config.update(OmegaConf.to_container(cfg, resolve=True))
     trainer = Trainer(**cfg.pl_trainer, logger=trainer_logger, log_every_n_steps=5)
     #trainer.fit(network,data)
 
@@ -84,3 +87,4 @@ def training(cfg: DictConfig):
     #testNet(network)
     trainModel(network, trainer, getDataloader(cfg.data), cfg.data.train_dataloader_conf, cfg.general_train.output_model_path)
     #testNet(network)
+    trainer_logger.experiment.finish()

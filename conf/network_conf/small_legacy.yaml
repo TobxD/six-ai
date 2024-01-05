@@ -1,0 +1,5 @@
+board_size: ${general.board_size}
+in_channels: 2
+residual_channels: 8
+residual_layers: 7
+legacy: true

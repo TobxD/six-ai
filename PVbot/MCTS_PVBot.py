@@ -22,7 +22,7 @@ logger = logging.getLogger(__file__)
 CPU_DEVICE = torch.device("cpu")
 
 def getMCTSBot(player: DictConfig, cfg: DictConfig, color, network=None, randomUpToMove=False):
-    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct, dirichletNoise=player.dirichletNoise, randomTemp=player.randomTemp) #MCTSPolicyValueBot(2, network)
+    bot = MCTSPolicyValueBot(model_path=player.model_path, cfg=cfg, network_conf=player.network_conf, network=network, myColor=color, randomUpToMove=randomUpToMove, numIterations=player.numIterations, c_puct=player.c_puct, dirichletNoise=player.dirichletNoise, randomTemp=player.randomTemp) #MCTSPolicyValueBot(2, network)
     return bot
 
 class Node:
@@ -69,16 +69,15 @@ class MCTSPolicyValueBot:
     numIterations: int
     logPV: bool
 
-    def __init__(self, myColor, model_path, cfg, randomUpToMove = 0, network = None, numIterations = 200, c_puct = 1, dirichletNoise = False, randomTemp=1):
+    def __init__(self, myColor, model_path, cfg, network_conf, randomUpToMove = 0, network = None, numIterations = 200, c_puct = 1, dirichletNoise = False, randomTemp=1):
         self.myColor = myColor
         self.randomUpToMove = randomUpToMove
         self.otherColor = 3-myColor
         self.device = torch.device("cuda")
         # self.device = torch.device("cpu")
-        self.network = PVnet.getModel(cfg, model_path)
+        self.network = PVnet.getModel(network_conf, cfg.train, model_path)
         self.network.to(self.device)
         self.network.eval()
-        ### TODO: torch.no_grad()
         self.numIterations = numIterations
         self.c_puct = c_puct
         self.logPV = cfg.play.log_pv
@@ -112,6 +111,7 @@ class MCTSPolicyValueBot:
         return -v
 
     def printMCTS (self, board, node, bestMove):
+        is_root = hasattr(node, "dirichlet")
         # docu at: https://docs.python.org/3/library/string.html#formatstrings
         TGREEN =  '\033[32m'
         ENDC = '\033[m'
@@ -120,19 +120,20 @@ class MCTSPolicyValueBot:
         log_strs.append(f"V: {node.V: 1.4f}")
         log_strs.append(f"worker: {os.getpid()}")
         log_strs.append(str(board))
-        log_strs.append("{:^5} {:^5} {:^7} {:^7} {:^7}".format("move", "N", "Q", "P", "V"))
+        log_strs.append("{:^5} {:^5} {:^7} {:^7} {:^7}".format("move", "N", "Q", "P", "V") + (" dirichlet" if is_root else ''))
         for i, move in enumerate(node.moves):
             node_val = "-------" if node.children[i] is None else f"{node.children[i].V: 1.4f}"
             log_strs.append((TGREEN if move==bestMove else '') + 
                             "{:^5} {:^5} {: 1.4f} {: 1.4f} {}".format('-'.join(str(x) for x in move), node.N[i], node.Q[i], float(node.P[i]), node_val) +
+                            (" {: 1.4f}".format(node.dirichlet[i]) if is_root else '') +
                             (ENDC if move==bestMove else ''))
         log_strs.append(str(bestMove))
         print("\n".join(log_strs) + "\n")
 
 
     def _add_dirichlet_noise(self, node, epsilon=0.25, alpha=1/3):
-        dirichlet = np.random.dirichlet([alpha for i in range(len(node.children))])
-        node.P = (1-epsilon) * node.P + epsilon * dirichlet
+        node.dirichlet = np.random.dirichlet([alpha for i in range(len(node.children))])
+        node.P = (1-epsilon) * node.P + epsilon * node.dirichlet
 
     def nextMove(self, board):
         root = Node(board, None, None, self.network)
@@ -144,17 +145,12 @@ class MCTSPolicyValueBot:
                 self.search(board, root)
         
         tempN = root.N**(1/self.randomTemp)
-        policy = tempN / sum(tempN)
-        policy = {move:policy[i] for i, move in enumerate(root.moves)}
+        policy_arr = tempN / sum(tempN)
+        policy = {move:policy_arr[i] for i, move in enumerate(root.moves)}
 
         if board.numberOfMovesPlayed() < self.randomUpToMove:
-            cutoff = random.random()
-            bestMove = policy[list(policy.keys())[0]]
-            for move in policy:
-                cutoff -= policy[move]
-                if cutoff <= 0:
-                    bestMove = move
-                    break
+            bestMoveInd = np.random.choice(len(root.N), p=policy_arr)
+            bestMove = root.moves[bestMoveInd]
         else:
             ### Best move according to N
             # TODO: break ties randomly

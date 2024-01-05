@@ -2,14 +2,16 @@
 
 defaults:
   - _self_
-  - player2: mcts_nn2
-  - player1: mcts_nn2
+  - player1: mcts_nn2_eval
+  - player2: mcts_nn2_eval2
   # - player1: random_search_winning
   # - player1: random_search_losing
   # - player1: random_nolook
   # - player2: random_nolook
-  - network_conf: small
-  #- network_conf: huge
+  - network_conf@network_conf.small: small
+  - network_conf@network_conf.small_legacy: small_legacy
+  - network_conf@network_conf.mid: mid
+  - network_conf@network_conf.mid2: mid2
 
 general:
   board_size: 10
@@ -20,18 +22,19 @@ general:
 
 #### PLAY ####
 play:
-  workers: 1
-  num_games: 1
+  workers: 4
+  num_games: 20
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null
   game_viewer: false
   random_color: false
   #store_path: "/data/games_gen2.1.json"
-  log_pv: true
+  log_pv: false
 
 #### TRAINING ####
 general_train:
+  network_conf: ${network_conf.mid}
   #input_model_path: "/models/small_test4.ckpt"
   input_model_path: null
   output_model_path: "/models/latest.ckpt"
@@ -51,6 +54,27 @@ data:
       "/data/iteration_games/games-7.json",
       "/data/iteration_games/games-8.json",
       "/data/iteration_games/games-9.json",
+
+      "/data/iteration_games_cont/games-0.json",
+      "/data/iteration_games_cont/games-1.json",
+      "/data/iteration_games_cont/games-2.json",
+      "/data/iteration_games_cont/games-3.json",
+      "/data/iteration_games_cont/games-4.json",
+      "/data/iteration_games_cont/games-5.json",
+      "/data/iteration_games_cont/games-6.json",
+      "/data/iteration_games_cont/games-7.json",
+      "/data/iteration_games_cont/games-8.json",
+      "/data/iteration_games_cont/games-9.json",
+      "/data/iteration_games_cont/games-10.json",
+      "/data/iteration_games_cont/games-11.json",
+      "/data/iteration_games_cont/games-12.json",
+      "/data/iteration_games_cont/games-13.json",
+      "/data/iteration_games_cont/games-14.json",
+      "/data/iteration_games_cont/games-15.json",
+      "/data/iteration_games_cont/games-16.json",
+      "/data/iteration_games_cont/games-17.json",
+      "/data/iteration_games_cont/games-18.json",
+      "/data/iteration_games_cont/games-19.json",
     ]
   train_val_split: 0.9
   train_dataloader_conf:
@@ -60,20 +84,22 @@ data:
 train:
   run_test: false
   optimizer:
-    lr: 0.001
+    lr: 0.0001
     momentum: 0.9
     nesterov: True
-    weight_decay: 0.003
+    # weight_decay: 0.003
+    weight_decay: 0
 
 pl_trainer:
-  max_epochs: 2
+  max_epochs: 1
   #progress_bar_refresh_rate: 25
   # accelerator: "auto"
   # auto_lr_find: True
 
 #### ITERATION ####
 iterate:
-  model_start_path: /models/iteration_models/model-10.ckpt
+  # model_start_path: /models/iteration_models/model-10.ckpt
+  model_start_path: /models/iteration_models_cont/mid-trained_all_data.ckpt
   num_iterations: 1000
   # number of games to play against last model with each color (total number is twice that)
   num_evaluation_games: 20
@@ -93,6 +119,26 @@ iterate:
       "/data/iteration_games/games-7.json",
       "/data/iteration_games/games-8.json",
       "/data/iteration_games/games-9.json",
+      "/data/iteration_games_cont/games-0.json",
+      "/data/iteration_games_cont/games-1.json",
+      "/data/iteration_games_cont/games-2.json",
+      "/data/iteration_games_cont/games-3.json",
+      "/data/iteration_games_cont/games-4.json",
+      "/data/iteration_games_cont/games-5.json",
+      "/data/iteration_games_cont/games-6.json",
+      "/data/iteration_games_cont/games-7.json",
+      "/data/iteration_games_cont/games-8.json",
+      "/data/iteration_games_cont/games-9.json",
+      "/data/iteration_games_cont/games-10.json",
+      "/data/iteration_games_cont/games-11.json",
+      "/data/iteration_games_cont/games-12.json",
+      "/data/iteration_games_cont/games-13.json",
+      "/data/iteration_games_cont/games-14.json",
+      "/data/iteration_games_cont/games-15.json",
+      "/data/iteration_games_cont/games-16.json",
+      "/data/iteration_games_cont/games-17.json",
+      "/data/iteration_games_cont/games-18.json",
+      "/data/iteration_games_cont/games-19.json",
     ]
   # number of positions that are at least used for training (if available)
   # We only use whole files and take the smallest number of past files such
