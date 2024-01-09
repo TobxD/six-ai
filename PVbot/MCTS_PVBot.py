@@ -47,9 +47,7 @@ class Node:
             with profiler.getProfiler("prepare input data"):
                 inputData = PVData.prepareInput(s.board, s.toMove)
             with profiler.getProfiler("create input tensor"):
-                # X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
-                # X = torch.stack(inputData, 0).to(torch.device("cuda")).unsqueeze(0)
-                X = torch.stack(inputData, 0).to(torch.device("cpu")).unsqueeze(0)
+                X = torch.stack(inputData, 0).to(network.device).unsqueeze(0)
             with profiler.getProfiler("eval network"):
                 with torch.no_grad():
                     policy, value = network(X)
@@ -74,8 +72,7 @@ class MCTSPolicyValueBot:
         self.myColor = myColor
         self.randomUpToMove = randomUpToMove
         self.otherColor = 3-myColor
-        # self.device = torch.device("cuda")
-        self.device = torch.device("cpu")
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.network = PVnet.getModel(network_conf, cfg.train, model_path)
         self.network.to(self.device)
         self.network.eval()

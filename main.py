@@ -3,7 +3,7 @@ from tabulate import tabulate
 from pprint import pprint
 import queue
 import shutil
-from board import Board, SIZE
+from board import Board
 from humanPlayer import HumanPlayer
 import util
 from randomBot import RandomBot
@@ -32,7 +32,6 @@ gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
 def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer = 1):
-    logger = logging.getLogger(__name__)
     moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
@@ -77,7 +76,7 @@ def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int, gv_queue):
         exit(1)
 
 def playGame(cfg, randomColor, gv_queue, drawInd):
-    board = Board(SIZE, startPieces=True)
+    board = Board(cfg.general.board_size, startPieces=True)
     if not randomColor or random.choice([True, False]):
         player1 = getPlayer(cfg.player1, cfg, 1, gv_queue)
         player2 = getPlayer(cfg.player2, cfg, 2, gv_queue)

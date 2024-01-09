@@ -8,3 +8,4 @@ randomUpToMove: 10
 randomTemp: 1
 dirichletNoise: false
 network_conf: ${network_conf.small_legacy}
+board_size: ${general.board_size}

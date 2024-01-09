@@ -1,7 +1,5 @@
 import numpy as np
 
-SIZE = 10
-
 RED = 1
 BLACK = 2
 RIGHT = 0

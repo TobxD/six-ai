@@ -8,3 +8,4 @@ randomUpToMove: 10
 randomTemp: 1
 dirichletNoise: true
 network_conf: ${network_conf.mid}
+board_size: ${general.board_size}

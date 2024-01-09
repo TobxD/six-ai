@@ -18,8 +18,6 @@ from torchvision.models.resnet import resnet18
 from typing import Tuple
 from omegaconf import DictConfig, OmegaConf
 
-from board import SIZE
-
 logger = logging.getLogger(__file__)
 
 DataPoint = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
@@ -363,4 +361,4 @@ def getModel(network_conf, train_cfg, path):
     if path == None:
         print("path empty when getting model")
         return PVnet(train_conf=train_cfg, network_conf=network_conf)
-    return PVnet.load_from_checkpoint(util.toPath(path), s=SIZE, train_conf=train_cfg, network_conf=network_conf)
+    return PVnet.load_from_checkpoint(util.toPath(path), s=network_conf.board_size, train_conf=train_cfg, network_conf=network_conf)

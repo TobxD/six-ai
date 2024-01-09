@@ -2,13 +2,11 @@
 
 defaults:
   - _self_
-  - player2: mcts_nn2
-  - player1: mcts_nn2
-  # - player1: human
-  # - player1: random_search_winning
-  # - player1: random_search_losing
-  # - player1: random_nolook
-  # - player2: random_nolook
+  - player@player1: mcts_nn2
+  - player@player2: human
+  # - player@player2: random_search_winning
+  # - player@player2: random_search_losing
+  # - player@player2: random_nolook
   - network_conf@network_conf.small: small
   - network_conf@network_conf.small_legacy: small_legacy
   - network_conf@network_conf.mid: mid
@@ -25,18 +23,14 @@ general:
 play:
   workers: 4
   num_games: 1
-  #store_path: "/data/small-100.json"
-  #store_path: "/data/slow-games-1.json"
   store_path: null
   game_viewer: true
   random_color: false
-  #store_path: "/data/games_gen2.1.json"
   log_pv: true
 
 #### TRAINING ####
 general_train:
   network_conf: ${network_conf.mid}
-  #input_model_path: "/models/small_test4.ckpt"
   input_model_path: null
   output_model_path: "/models/latest.ckpt"
 
@@ -88,19 +82,13 @@ train:
     lr: 0.0001
     momentum: 0.9
     nesterov: True
-    # weight_decay: 0.003
     weight_decay: 0.000001
 
 pl_trainer:
   max_epochs: 1
-  #progress_bar_refresh_rate: 25
-  # accelerator: "auto"
-  # auto_lr_find: True
 
 #### ITERATION ####
 iterate:
-  # model_start_path: /models/iteration_models/model-10.ckpt
-  # model_start_path: /models/iteration_models_cont/mid-trained_all_data.ckpt
   model_start_path: /models/iteration_models_cont2-mid/model-10.ckpt
   num_iterations: 1000
   # number of games to play against last model with each color (total number is twice that)
