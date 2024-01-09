@@ -90,7 +90,7 @@ class Board:
         for player in range(2):
             stones = np.argwhere(self.stones[player])
             pattern_positions = stones[:, None, None, :] + shapes_numpy
-            valid_mask = ((pattern_positions >= 0) & (pattern_positions < 10)).all(axis=(-2, -1))
+            valid_mask = ((pattern_positions >= 0) & (pattern_positions < self.size)).all(axis=(-2, -1))
             valid_pattern_positions = pattern_positions[valid_mask]
             pattern_res = self.stones[player][valid_pattern_positions[..., 0], valid_pattern_positions[..., 1]]
             if pattern_res.all(axis=-1).any():

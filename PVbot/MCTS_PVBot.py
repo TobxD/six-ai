@@ -48,7 +48,8 @@ class Node:
                 inputData = PVData.prepareInput(s.board, s.toMove)
             with profiler.getProfiler("create input tensor"):
                 # X = torch.stack(inputData, 0).to(self.device).unsqueeze(0)
-                X = torch.stack(inputData, 0).to(torch.device("cuda")).unsqueeze(0)
+                # X = torch.stack(inputData, 0).to(torch.device("cuda")).unsqueeze(0)
+                X = torch.stack(inputData, 0).to(torch.device("cpu")).unsqueeze(0)
             with profiler.getProfiler("eval network"):
                 with torch.no_grad():
                     policy, value = network(X)
@@ -73,8 +74,8 @@ class MCTSPolicyValueBot:
         self.myColor = myColor
         self.randomUpToMove = randomUpToMove
         self.otherColor = 3-myColor
-        self.device = torch.device("cuda")
-        # self.device = torch.device("cpu")
+        # self.device = torch.device("cuda")
+        self.device = torch.device("cpu")
         self.network = PVnet.getModel(network_conf, cfg.train, model_path)
         self.network.to(self.device)
         self.network.eval()
@@ -146,7 +147,7 @@ class MCTSPolicyValueBot:
             self._add_dirichlet_noise(root)
 
         # take at least 30 iterations to explore using new dirichlet noise
-        min_iterations = 30 if self.dirichletNoise else 0
+        min_iterations = min(30, self.numIterations) if self.dirichletNoise else 0
         iterations_needed = max(int(self.numIterations - root.N.sum()), min_iterations)
         for _ in range(iterations_needed):
             self.search(board, root)

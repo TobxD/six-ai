@@ -2,8 +2,9 @@
 
 defaults:
   - _self_
-  - player1: mcts_nn2
   - player2: mcts_nn2
+  - player1: mcts_nn2
+  # - player1: human
   # - player1: random_search_winning
   # - player1: random_search_losing
   # - player1: random_nolook
@@ -15,22 +16,22 @@ defaults:
 
 general:
   board_size: 10
-  # mode: "play"
+  mode: "play"
   # mode: "train"
-  mode: "iterate"
+  # mode: "iterate"
   # mode: "eval"
 
 #### PLAY ####
 play:
   workers: 4
-  num_games: 1000
+  num_games: 1
   #store_path: "/data/small-100.json"
   #store_path: "/data/slow-games-1.json"
   store_path: null
-  game_viewer: false
+  game_viewer: true
   random_color: false
   #store_path: "/data/games_gen2.1.json"
-  log_pv: false
+  log_pv: true
 
 #### TRAINING ####
 general_train:
@@ -107,7 +108,8 @@ iterate:
   # percentage that has to be won at least to continue with model
   winning_threshold: 0.6
   # list of previously generated data that can be used for training
-  game_data_files: [
+  game_data_files:
+    [
       "/data/iteration_games/games_200-1.json",
       "/data/iteration_games/games_200-1.json",
       "/data/iteration_games/games-0.json",

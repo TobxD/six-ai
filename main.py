@@ -4,6 +4,7 @@ from pprint import pprint
 import queue
 import shutil
 from board import Board, SIZE
+from humanPlayer import HumanPlayer
 import util
 from randomBot import RandomBot
 import PVbot.PVbot_util as PVbot_util
@@ -38,7 +39,7 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
     positions = []
     while True:
         if gv_queue:
-            gv_queue.put((drawInd, board))
+            gv_queue.put(("move", (drawInd, board)))
         with profiler.getProfiler("has won"):
             winner = board.hasWon()
         if winner != 0:
@@ -65,22 +66,24 @@ def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer
     # -1 means first player wins, 1 means second player wins
     return (positions, result)
 
-def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int):
+def getPlayer(player_cfg: DictConfig, cfg: DictConfig, color: int, gv_queue):
     if player_cfg.player_type == "mcts_nn":
         return MCTS_PVBot.getMCTSBot(player_cfg, cfg=cfg, color=color, network=None, randomUpToMove=player_cfg.randomUpToMove)
     elif player_cfg.player_type == "random":
         return RandomBot(color, player_cfg.search_winning, player_cfg.search_losing)
+    elif player_cfg.player_type == "human":
+        return HumanPlayer(gv_queue)
     else:
         exit(1)
 
 def playGame(cfg, randomColor, gv_queue, drawInd):
     board = Board(SIZE, startPieces=True)
     if not randomColor or random.choice([True, False]):
-        player1 = getPlayer(cfg.player1, cfg, 1)
-        player2 = getPlayer(cfg.player2, cfg, 2)
+        player1 = getPlayer(cfg.player1, cfg, 1, gv_queue)
+        player2 = getPlayer(cfg.player2, cfg, 2, gv_queue)
     else:
-        player1 = getPlayer(cfg.player2, cfg, 2)
-        player2 = getPlayer(cfg.player1, cfg, 1)
+        player1 = getPlayer(cfg.player2, cfg, 2, gv_queue)
+        player2 = getPlayer(cfg.player1, cfg, 1, gv_queue)
     if cfg.player1.player_type == "mcts_nn" and cfg.player1 == cfg.player2:
         player1.other_player = player2
         player2.other_player = player1
