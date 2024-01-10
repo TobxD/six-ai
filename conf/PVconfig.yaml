@@ -14,17 +14,17 @@ defaults:
 
 general:
   board_size: 10
-  mode: "play"
+  # mode: "play"
   # mode: "train"
   # mode: "iterate"
-  # mode: "eval"
+  mode: "eval"
 
 #### PLAY ####
 play:
   workers: 4
   num_games: 1
   store_path: null
-  game_viewer: true
+  game_viewer: false
   random_color: false
   log_pv: true
 
@@ -150,13 +150,13 @@ iterate:
   num_past_train_positions: 200000
 
 eval:
-  num_evaluation_games: 20
+  num_evaluation_games: 4
+  results_path: /data/eval_results.json
   models:
+    - player: /conf/player/random_nolook.yaml
+    - player: /conf/player/random_search_winning.yaml
+    - player: /conf/player/random_search_losing.yaml
     - player: /conf/player/mcts_nn.yaml
       path: null
     - player: /conf/player/mcts_nn.yaml
       path: /models/iteration_models/model-10.ckpt
-    - player: /conf/player/mcts_nn.yaml
-      path: /outputs/2024-01-02/20-23-11/model-4.ckpt
-    - player: /conf/player/mcts_nn.yaml
-      path: /outputs/2024-01-02/20-23-11/model-9.ckpt

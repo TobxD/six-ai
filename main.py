@@ -32,6 +32,7 @@ gameCnt = {-1:0, 0:0, 1:0}
 
 # there have to be moves available -> at least one stone already set
 def simulate(board, player1, player2, gv_queue=None, drawInd = None, startPlayer = 1):
+    logger = logging.getLogger(__name__)
     moveNum = 0
     players = [player1, player2]
     toMove = startPlayer-1
@@ -188,19 +189,19 @@ def evalModel(cfg, model_path1, model_path2, cnt_per_color, gv_queue, player1_co
     if player2_config:
         newCfg.player2 = player2_config
 
-    newCfg.player1.dirichletNoise = False
-    newCfg.player2.dirichletNoise = False
-
-    newCfg.player1.model_path = model_path1
-    newCfg.player2.model_path = model_path2
+    if newCfg.player1.player_type == "mcts_nn":
+        newCfg.player1.dirichletNoise = False
+        newCfg.player1.model_path = model_path1
+    if newCfg.player2.player_type == "mcts_nn":
+        newCfg.player2.dirichletNoise = False
+        newCfg.player2.model_path = model_path2
     stats1 = generateGames(newCfg, gv_queue)
 
-    newCfg.player1.model_path = model_path2
-    newCfg.player2.model_path = model_path1
+    newCfg.player1, newCfg.player2 = newCfg.player2, newCfg.player1
     stats2 = generateGames(newCfg, gv_queue)
 
     win_cnt = stats1[-1] + stats2[1] + 0.5 * (stats1[0] + stats2[0])
-    return win_cnt/(2 * cnt_per_color)
+    return win_cnt/(2 * cnt_per_color), stats1, stats2
 
 def addFile(file_list, new_file, max_number_positions):
     cnt = 0
@@ -232,7 +233,7 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
         cfg.data.train_data_path = game_data_files
         logger.info("training on " + str(game_data_files))
         PVbot_util.training(cfg, name=f"iter-{i}")
-        winning_perc = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
+        winning_perc, _, _ = evalModel(cfg, next_model_path, model_path, cfg.iterate.num_evaluation_games, gv_queue)
         logger.info(f"new generation {i} won with frequency {winning_perc}")
         if winning_perc >= cfg.iterate.winning_threshold:
             logger.info(f"continuing with new model {next_model_path}")
@@ -244,23 +245,78 @@ def generateTrainLoop(cfg: DictConfig, gv_queue):
 
 def eval_models(cfg: DictConfig, gv_queue):
     cfg = copy.deepcopy(cfg)
+    cached_results = json.load(open(util.toPath(cfg.eval.results_path)))
+    # convert str keys in cached_results["results"] to int keys
+    def conv_to_int_keys(data):
+        if type(data) != dict:
+            return data
+        return {int(k): conv_to_int_keys(v) for k, v in data.items()}
+    cached_results["results"] = conv_to_int_keys(cached_results["results"])
+    player_names = []
+    for i in range(len(cfg.eval.models)):
+        loaded_conf = OmegaConf.load(util.toPath(cfg.eval.models[i].player))
+        if loaded_conf.player_type == "mcts_nn":
+            player_names.append(cfg.eval.models[i].path)
+        else:
+            # player_name is models[i].player, but only take path from last / on
+            player_name = cfg.eval.models[i].player.split("/")[-1]
+            player_names.append(player_name)
+        cfg.eval.models[i].player = loaded_conf
+        if cfg.eval.models[i].player.player_type == "mcts_nn":
+            cfg.eval.models[i].player.model_path = cfg.eval.models[i].path
+    player_indices = []
+    for player in cfg.eval.models:
+        found = False
+        for i, m in enumerate(cached_results["models"]):
+            if player.player == m:
+                player_indices.append(i)
+                found = True
+                break
+        if not found:
+            player_indices.append(len(cached_results["models"]))
+            cached_results["models"].append(OmegaConf.to_container(player.player, resolve=True))
+
+    with open(util.toPath(cfg.eval.results_path), "w") as f:
+        json.dump(cached_results, f)
+
     num_models = len(cfg.eval.models)
     results = [["/" for _ in range(num_models)] for _ in range(num_models)]
     for i1 in range(num_models):
-        # load config from path
-        cfg.eval.models[i1].player = OmegaConf.load(util.toPath(cfg.eval.models[i1].player))
         for i2 in range(i1):
             c1 = cfg.eval.models[i1]
             c2 = cfg.eval.models[i2]
-            res = evalModel(cfg, c1.path, c2.path, cfg.eval.num_evaluation_games, gv_queue, c1.player, c2.player)
-            results[i1][i2] = res
-            results[i2][i1] = 1-res
-    with open(util.toPath("eval_results.json"), "w") as f:
-        json.dump(results, f)
+
+            cached_ind1 = player_indices[i1]
+            cached_ind2 = player_indices[i2]
+
+            cur_results = (cached_results["results"][cached_ind1][cached_ind2].copy()
+                           if cached_ind1 in cached_results["results"] and cached_ind2 in cached_results["results"][cached_ind1]
+                           else {-1: 0, 0: 0, 1: 0})
+            num_matches_per_color = (cur_results[-1] + cur_results[0] + cur_results[1])//2
+
+            if num_matches_per_color < cfg.eval.num_evaluation_games:
+                _, new_results1, new_results2 = evalModel(cfg, c1.get("path", None), c2.get("path", None), cfg.eval.num_evaluation_games-num_matches_per_color, gv_queue, c1.player, c2.player)
+                for k in cur_results:
+                    cur_results[k] += new_results1[k] + new_results2[-k]
+                if cached_ind1 not in cached_results["results"]:
+                    cached_results["results"][cached_ind1] = {}
+                cached_results["results"][cached_ind1][cached_ind2] = cur_results.copy()
+                reverse_results = cur_results.copy()
+                reverse_results[-1], reverse_results[1] = reverse_results[1], reverse_results[-1]
+                if cached_ind2 not in cached_results["results"]:
+                    cached_results["results"][cached_ind2] = {}
+                cached_results["results"][cached_ind2][cached_ind1] = reverse_results
+
+                with open(util.toPath(cfg.eval.results_path), "w") as f:
+                    json.dump(cached_results, f)
+            num_played = sum(cur_results.values())
+            win_perc = (cur_results[-1] + 0.5*cur_results[0])/num_played
+            results[i1][i2] = f"{win_perc}% ({num_played//2})"
+            results[i2][i1] = f"{1-win_perc} ({num_played//2})"
     
     headers = ["Model"] + [f"Model {i}" for i in range(num_models)]
     table_data = [[f"Model {i}"] + results[i] for i in range(num_models)]
-    info_str = "\n".join([f"Model {i}: {cfg.eval.models[i].path}" for i in range(num_models)])
+    info_str = "\n".join([f"Model {i}: {player_names[i]}" for i in range(num_models)])
     table_str = info_str + "\n" + tabulate(table_data, headers, tablefmt="grid")
 
     with open(util.toPath("eval_results.txt"), "w") as f:
