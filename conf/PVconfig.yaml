@@ -26,7 +26,7 @@ play:
   store_path: null
   game_viewer: false
   random_color: false
-  log_pv: true
+  log_pv: false
 
 #### TRAINING ####
 general_train:
@@ -150,7 +150,7 @@ iterate:
   num_past_train_positions: 200000
 
 eval:
-  num_evaluation_games: 4
+  num_evaluation_games: 50
   results_path: /data/eval_results.json
   models:
     - player: /conf/player/random_nolook.yaml
@@ -159,4 +159,28 @@ eval:
     - player: /conf/player/mcts_nn.yaml
       path: null
     - player: /conf/player/mcts_nn.yaml
+      path: /models/iteration_models/model-1.ckpt
+    - player: /conf/player/mcts_nn.yaml
+      path: /models/iteration_models/model-5.ckpt
+    - player: /conf/player/mcts_nn.yaml
       path: /models/iteration_models/model-10.ckpt
+    - player: /conf/player/mcts_nn.yaml
+      path: /models/iteration_models_cont/model-9.ckpt
+    - player: /conf/player/mcts_nn.yaml
+      path: /models/iteration_models_cont/model-19.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont/mid-trained_all_data.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont2-mid/model-1.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont2-mid/model-5.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont2-mid/model-10.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont3-mid/model-1.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont3-mid/model-3.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont3-mid/model-4.ckpt
+    - player: /conf/player/mcts_nn2_eval.yaml
+      path: /models/iteration_models_cont3-mid/model-5.ckpt

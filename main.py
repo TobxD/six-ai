@@ -294,6 +294,8 @@ def eval_models(cfg: DictConfig, gv_queue):
                            else {-1: 0, 0: 0, 1: 0})
             num_matches_per_color = (cur_results[-1] + cur_results[0] + cur_results[1])//2
 
+            logger.info(f"evaluating {player_names[i1]} against {player_names[i2]}")
+
             if num_matches_per_color < cfg.eval.num_evaluation_games:
                 _, new_results1, new_results2 = evalModel(cfg, c1.get("path", None), c2.get("path", None), cfg.eval.num_evaluation_games-num_matches_per_color, gv_queue, c1.player, c2.player)
                 for k in cur_results:
@@ -311,17 +313,17 @@ def eval_models(cfg: DictConfig, gv_queue):
                     json.dump(cached_results, f)
             num_played = sum(cur_results.values())
             win_perc = (cur_results[-1] + 0.5*cur_results[0])/num_played
-            results[i1][i2] = f"{win_perc}% ({num_played//2})"
-            results[i2][i1] = f"{1-win_perc} ({num_played//2})"
+            results[i1][i2] = f"{win_perc:.2f} ({num_played//2})"
+            results[i2][i1] = f"{1-win_perc:.2f} ({num_played//2})"
     
-    headers = ["Model"] + [f"Model {i}" for i in range(num_models)]
-    table_data = [[f"Model {i}"] + results[i] for i in range(num_models)]
-    info_str = "\n".join([f"Model {i}: {player_names[i]}" for i in range(num_models)])
-    table_str = info_str + "\n" + tabulate(table_data, headers, tablefmt="grid")
+            headers = ["Model"] + [f"Model {i}" for i in range(num_models)]
+            table_data = [[f"Model {i}"] + results[i] for i in range(num_models)]
+            info_str = "\n".join([f"Model {i}: {player_names[i]}" for i in range(num_models)])
+            table_str = info_str + "\n" + tabulate(table_data, headers, tablefmt="grid")
 
-    with open(util.toPath("eval_results.txt"), "w") as f:
-        f.write(table_str)
-    print(table_str)
+            with open(util.toPath("eval_results.txt"), "w") as f:
+                f.write(table_str)
+            print(table_str)
 
 def doWork(cfg: DictConfig, game_viewer, gv_queue):
     logger.info(f"current wd: {os.getcwd()}")
