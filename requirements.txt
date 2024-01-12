@@ -1,0 +1,6 @@
+hydra-core
+numpy
+pytorch-lightning
+tabulate
+torch
+torchvision

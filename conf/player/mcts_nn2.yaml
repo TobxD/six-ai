@@ -1,8 +1,5 @@
 player_type: "mcts_nn"
-# model_path: /models/latest.ckpt
-model_path: /models/iteration_models_cont3-mid/model-5.ckpt
-# model_path: /models/iteration_models/model-10.ckpt
-# model_path: /outputs/2024-01-02/20-23-11/model-14.ckpt
+model_path: /models/final_trained.ckpt
 numIterations: 200
 c_puct: 2
 randomUpToMove: 10

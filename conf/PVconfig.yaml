@@ -2,8 +2,8 @@
 
 defaults:
   - _self_
-  - player@player1: mcts_nn2
-  - player@player2: human
+  - player@player1: human
+  - player@player2: mcts_nn2
   # - player@player2: random_search_winning
   # - player@player2: random_search_losing
   # - player@player2: random_nolook
