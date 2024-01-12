@@ -17,6 +17,9 @@ class HumanPlayer:
                 break
 
         all_moves = board.movesAvailable()
-        next_move = self.q.get()
+        while True:
+            next_move = self.q.get()
+            if next_move in all_moves:
+                break
         policy = {move:(1 if move==next_move else 0) for move in all_moves}
         return next_move, policy
