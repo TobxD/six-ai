@@ -14,17 +14,17 @@ defaults:
 
 general:
   board_size: 10
-  # mode: "play"
+  mode: "play"
   # mode: "train"
   # mode: "iterate"
-  mode: "eval"
+  # mode: "eval"
 
 #### PLAY ####
 play:
   workers: 4
   num_games: 1
   store_path: null
-  game_viewer: false
+  game_viewer: true
   random_color: false
   log_pv: false
 

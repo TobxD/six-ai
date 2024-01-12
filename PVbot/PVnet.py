@@ -1,3 +1,9 @@
+"""
+This code is mainly copied from 
+https://github.com/yukw777/leela-zero-pytorch/blob/master/leela_zero_pytorch/network.py
+and modified a bit
+"""
+
 import logging
 import util
 from pathlib import Path
