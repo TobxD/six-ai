@@ -3,6 +3,7 @@ import logging
 
 logger = logging.getLogger(__file__)
 
+
 class TimeTracker:
     def __init__(self, name):
         self.total_time = 0
@@ -12,7 +13,8 @@ class TimeTracker:
         self.start_time = time.time()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.total_time += time.time()-self.start_time
+        self.total_time += time.time() - self.start_time
+
 
 class Profiler:
     def __init__(self):
@@ -30,5 +32,6 @@ class Profiler:
         for name in self.timer:
             logger.info(f"{name}: {self.timer[name].total_time}")
             print(f"{name}: {self.timer[name].total_time}")
+
 
 profiler = Profiler()

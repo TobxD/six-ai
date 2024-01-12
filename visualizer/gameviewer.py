@@ -3,28 +3,56 @@ import math
 import sys
 import threading
 import copy
-import time
 
 import multiprocessing
 
-sys.path.append('.')
-import board
+sys.path.append(".")
+
 
 class GameCanvas(Canvas):
-    x_diff = math.sin(math.pi/3)
-    y_diff = 1 + math.cos(math.pi/3)
+    x_diff = math.sin(math.pi / 3)
+    y_diff = 1 + math.cos(math.pi / 3)
 
-    def __init__(self, master,*args,**kwargs):
+    def __init__(self, master, *args, **kwargs):
         Canvas.__init__(self, master=master, *args, **kwargs)
-        y_diff_poly = math.cos(math.pi/3)
-        self.poly = [0, 0, 0, 1, self.x_diff, 1+y_diff_poly, 2*self.x_diff, 1, 2*self.x_diff, 0, self.x_diff, -y_diff_poly]
-        self.is_x = [True, False, True, False, True, False, True, False, True, False, True, False]
+        y_diff_poly = math.cos(math.pi / 3)
+        self.poly = [
+            0,
+            0,
+            0,
+            1,
+            self.x_diff,
+            1 + y_diff_poly,
+            2 * self.x_diff,
+            1,
+            2 * self.x_diff,
+            0,
+            self.x_diff,
+            -y_diff_poly,
+        ]
+        self.is_x = [
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+        ]
         self.listener = []
         self.mid_points = []
 
     def drawHex(self, x, y, side_length, color):
-        new_poly = [(x if is_x else y) + side_length*coord for (coord, is_x) in zip(self.poly, self.is_x)]
-        self.create_polygon(new_poly, outline='black', fill=color, width=3)
+        new_poly = [
+            (x if is_x else y) + side_length * coord
+            for (coord, is_x) in zip(self.poly, self.is_x)
+        ]
+        self.create_polygon(new_poly, outline="black", fill=color, width=3)
 
     def drawBoard(self, board):
         colors = ["white", "red", "black"]
@@ -34,8 +62,18 @@ class GameCanvas(Canvas):
         self.mid_points = []
         for i in range(board.size):
             for j in range(board.size):
-                self.drawHex(off + side_length*self.x_diff*(2*j+i), off + side_length*self.y_diff*i, side_length, colors[board[i, j]])
-                self.mid_points.append((off + side_length*self.x_diff*(2*j+i+1), off + side_length*(self.y_diff*i+0.5)))
+                self.drawHex(
+                    off + side_length * self.x_diff * (2 * j + i),
+                    off + side_length * self.y_diff * i,
+                    side_length,
+                    colors[board[i, j]],
+                )
+                self.mid_points.append(
+                    (
+                        off + side_length * self.x_diff * (2 * j + i + 1),
+                        off + side_length * (self.y_diff * i + 0.5),
+                    )
+                )
         self.pack()
 
     def add_click_listener(self, listener_queue):
@@ -52,12 +90,13 @@ class GameCanvas(Canvas):
         bst, bstD = None, float("inf")
         board_size = int(math.sqrt(len(self.mid_points)))
         for i, (x_mid, y_mid) in enumerate(self.mid_points):
-            dist = (x_mid - x)**2 + (y_mid - y)**2
+            dist = (x_mid - x) ** 2 + (y_mid - y) ** 2
             if dist < bstD:
-                bst, bstD = (i//board_size, i%board_size), dist
+                bst, bstD = (i // board_size, i % board_size), dist
         return bst
 
-class GameViewer():
+
+class GameViewer:
     def __init__(self):
         self.q = multiprocessing.Manager().Queue()
         self.root = Tk()
@@ -66,7 +105,7 @@ class GameViewer():
         self.windows[0] = GameCanvas(self.root, height=2000, width=3000)
 
     def start(self, target):
-        threading.Thread(target=target, args=(self.q, )).start()
+        threading.Thread(target=target, args=(self.q,)).start()
         self.root.after(100, lambda: self.redraw_if_needed())
         self.root.mainloop()
 
@@ -82,7 +121,6 @@ class GameViewer():
                 continue
             else:
                 assert action_type == "move"
-                # (window, board) = self.q.get()
                 self.windows[window].drawBoard(content)
         self.root.after(100, lambda: self.redraw_if_needed())
 
@@ -99,6 +137,8 @@ class GameViewer():
 
 
 """
+# testing code
+
 listener_queue = multiprocessing.Manager().Queue()
 b = board.Board(10, True)
 gv = GameViewer()

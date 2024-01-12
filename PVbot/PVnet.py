@@ -1,32 +1,23 @@
 """
-This code is mainly copied from 
+This code is mainly from 
 https://github.com/yukw777/leela-zero-pytorch/blob/master/leela_zero_pytorch/network.py
 and modified a bit
 """
 
 import logging
 import util
-from pathlib import Path
-import random
-import numpy as np
-import hydra
-from hydra.utils import instantiate, to_absolute_path
-from torch._C import device
-#from pytorch_lightning import LightningModule, Trainer, LightningDataModule
 import torchmetrics
 import torch
 import pytorch_lightning as pl
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
-from pytorch_lightning import Trainer
-from torchvision.models.resnet import resnet18
 from typing import Tuple
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 logger = logging.getLogger(__file__)
 
 DataPoint = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+
 
 class ConvBlock(nn.Module):
     """
@@ -68,13 +59,13 @@ class ConvBlock(nn.Module):
     ):
         super().__init__()
         # we only support odd kernel sizes
-        assert kernel_size%2 == 1
+        assert kernel_size % 2 == 1
 
         self.conv = nn.Conv2d(
             in_channels,
             out_channels,
             kernel_size,
-            padding=kernel_size//2,
+            padding=kernel_size // 2,
             bias=False,
         )
         self.bn = nn.BatchNorm2d(out_channels, affine=False)
@@ -90,6 +81,7 @@ class ConvBlock(nn.Module):
         x += self.beta.view(1, self.bn.num_features, 1, 1).expand_as(x)
         return F.relu(x, inplace=True) if self.relu else x
 
+
 class ResBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -104,6 +96,7 @@ class ResBlock(nn.Module):
 
         out += identity
         return F.relu(out, inplace=True)
+
 
 class Network(nn.Module):
     def __init__(
@@ -130,27 +123,13 @@ class Network(nn.Module):
         if legacy:
             self.policy_conv = nn.Sequential(
                 ResBlock(residual_channels, residual_channels),
-                ConvBlock(residual_channels, 1, 1, relu=False)
-            )
-        else:
-            # self.policy_head = nn.Sequential(
-            #     ConvBlock(residual_channels, 2, 1),
-            #     nn.Flatten(),
-            #     #TODO: delete ReLU as it is included in conv block
-            #     nn.ReLU(),
-            #     nn.Linear(2 * board_size * board_size, board_size * board_size),
-            # )
-            self.policy_head = nn.Sequential(
-                *[
-                    ResBlock(residual_channels, residual_channels)
-                    for _ in range(3)
-                ],
                 ConvBlock(residual_channels, 1, 1, relu=False),
             )
-            # self.policy_head = nn.Sequential(
-            #     ResBlock(residual_channels, residual_channels),
-            #     ConvBlock(residual_channels, 1, 1, relu=False)
-            # )
+        else:
+            self.policy_head = nn.Sequential(
+                *[ResBlock(residual_channels, residual_channels) for _ in range(3)],
+                ConvBlock(residual_channels, 1, 1, relu=False),
+            )
         if self.legacy:
             self.value_conv = ConvBlock(residual_channels, 1, 1)
             self.value_fc_1 = nn.Linear(board_size * board_size, 256)
@@ -166,7 +145,6 @@ class Network(nn.Module):
                 nn.Linear(32, 1),
             )
 
-
     def forward(self, planes):
         x = self.conv_input(planes)
         x = self.residual_tower(x)
@@ -174,7 +152,9 @@ class Network(nn.Module):
         if self.legacy:
             pol = self.policy_conv(x)
         else:
-            pol = self.policy_head(x).view(x.shape[0], 1, self.board_size, self.board_size)
+            pol = self.policy_head(x).view(
+                x.shape[0], 1, self.board_size, self.board_size
+            )
 
         if self.legacy:
             val = self.value_conv(x)
@@ -188,83 +168,6 @@ class Network(nn.Module):
 
         return pol, val
 
-    def to_leela_weights(self, filename: str):
-        """
-        Save the current weights in the Leela Zero format to the given file name.
-        The Leela Zero weights format:
-        The residual tower is first, followed by the policy head, and then the value
-        head. All convolution filters are 3x3 except for the ones at the start of
-        the policy and value head, which are 1x1 (as in the paper).
-        Convolutional layers have 2 weight rows:
-            1. convolution weights w/ shape [output, input, filter_size, filter_size]
-            2. channel biases
-        Batchnorm layers have 2 weight rows:
-            1. batchnorm means
-            2. batchnorm variances
-        Innerproduct (fully connected) layers have 2 weight rows:
-            1. layer weights w/ shape [output, input]
-            2. output biases
-        Therefore, the equation for the number of layers is
-        n_layers = 1 (version number) +
-                   2 (input convolution) +
-                   2 (input batch norm) +
-                   n_res (number of residual blocks) *
-                   8 (first conv + first batch norm + second conv + second batch norm) +
-                   2 (policy head convolution) +
-                   2 (policy head batch norm) +
-                   2 (policy head linear) +
-                   2 (value head convolution) +
-                   2 (value head batch norm) +
-                   2 (value head first linear) +
-                   2 (value head second linear)
-        """
-        with open(filename, "w") as f:
-            # version tag
-            f.write("1\n")
-            for child in self.children():
-                # newline unless last line (single bias)
-                if isinstance(child, ConvBlock):
-                    f.write(self.conv_block_to_leela_weights(child))
-                elif isinstance(child, nn.Linear):
-                    f.write(self.tensor_to_leela_weights(child.weight))
-                    f.write(self.tensor_to_leela_weights(child.bias))
-                elif isinstance(child, nn.Sequential):
-                    # residual tower
-                    for grand_child in child.children():
-                        if isinstance(grand_child, ResBlock):
-                            f.write(self.conv_block_to_leela_weights(grand_child.conv1))
-                            f.write(self.conv_block_to_leela_weights(grand_child.conv2))
-                        else:
-                            err = (
-                                "Sequential should only have ResBlocks, but found "
-                                + str(type(grand_child))
-                            )
-                            raise ValueError(err)
-                elif isinstance(child, pl.metrics.Accuracy):
-                    continue
-                else:
-                    raise ValueError("Unknown layer type" + str(type(child)))
-
-    @staticmethod
-    def conv_block_to_leela_weights(conv_block: ConvBlock) -> str:
-        weights = []
-        weights.append(Network.tensor_to_leela_weights(conv_block.conv.weight))
-        # calculate beta * sqrt(var - eps)
-        bias = conv_block.beta * torch.sqrt(
-            conv_block.bn.running_var - conv_block.bn.eps  # type: ignore
-        )
-        weights.append(Network.tensor_to_leela_weights(bias))
-        weights.append(
-            Network.tensor_to_leela_weights(conv_block.bn.running_mean)  # type: ignore
-        )
-        weights.append(
-            Network.tensor_to_leela_weights(conv_block.bn.running_var)  # type: ignore
-        )
-        return "".join(weights)
-
-    @staticmethod
-    def tensor_to_leela_weights(t: torch.Tensor) -> str:
-        return " ".join([str(w) for w in t.detach().numpy().ravel()]) + "\n"
 
 class PVnet(Network, pl.LightningModule):  # type: ignore
     def __init__(
@@ -309,7 +212,7 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
             {
                 "train_mse_loss": mse_loss,
                 "train_ce_loss": cross_entropy_loss,
-                "train_acc": self.train_accuracy(pred_move, target_move)
+                "train_acc": self.train_accuracy(pred_move, target_move),
             }
         )
         return loss
@@ -350,21 +253,23 @@ class PVnet(Network, pl.LightningModule):  # type: ignore
     def configure_optimizers(self):
         # taken from leela zero
         # https://github.com/leela-zero/leela-zero/blob/db5569ce8d202f77154f288c21d3f2fa228f9aa3/training/tf/tfprocess.py#L190-L191
-        opt = torch.optim.Adam(self.parameters(), lr=self.train_conf.optimizer.lr, weight_decay=self.train_conf.optimizer.weight_decay)
-        #sgd_opt = torch.optim.SGD(
-        #    self.parameters(),
-        #    **self.train_conf.optimizer
-        #)
+        opt = torch.optim.Adam(
+            self.parameters(),
+            lr=self.train_conf.optimizer.lr,
+            weight_decay=self.train_conf.optimizer.weight_decay,
+        )
         return {
             "optimizer": opt,
-            #"lr_scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
-            #    sgd_opt, verbose=True, min_lr=5e-6
-            #),
-            #"monitor": "val_loss",
         }
+
 
 def getModel(network_conf, train_cfg, path):
     if path == None:
         print("path empty when getting model")
         return PVnet(train_conf=train_cfg, network_conf=network_conf)
-    return PVnet.load_from_checkpoint(util.toPath(path), s=network_conf.board_size, train_conf=train_cfg, network_conf=network_conf)
+    return PVnet.load_from_checkpoint(
+        util.toPath(path),
+        s=network_conf.board_size,
+        train_conf=train_cfg,
+        network_conf=network_conf,
+    )

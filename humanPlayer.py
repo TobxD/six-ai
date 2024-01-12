@@ -3,6 +3,7 @@ import queue
 
 from board import Board
 
+
 class HumanPlayer:
     def __init__(self, gv_queue):
         self.q = multiprocessing.Manager().Queue()
@@ -21,5 +22,5 @@ class HumanPlayer:
             next_move = self.q.get()
             if next_move in all_moves:
                 break
-        policy = {move:(1 if move==next_move else 0) for move in all_moves}
+        policy = {move: (1 if move == next_move else 0) for move in all_moves}
         return next_move, policy
