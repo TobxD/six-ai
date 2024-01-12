@@ -1,6 +1,6 @@
 # Six AI
 
-This repository applies an adaptation of Alpha Zero to the game Six
+This repository applies an adaptation of Alpha Zero to the game Six.
 
 ## The Game Six
 
@@ -21,3 +21,8 @@ Credits for most of the code for the Resnet network architecture to [Leela Zero 
 - `pip install -r requirements.txt`
 - To just play against the current version, you can leave the config file as is and run `python main.py`
 - Change the config file in `conf/PVconfig.yaml` to fit your needs: particularly, select whether you want to play, train, etc. and modify the respective config sections
+
+## Results
+
+During training, the network vs. network games converge to draws which support that the value of the game might be a draw with optimal play.
+After training, I was not able to win against the network anymore -- feel free to try yourself and let me know if you manage to win :)
